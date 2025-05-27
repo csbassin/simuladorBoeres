@@ -8,7 +8,7 @@ public class Launch {
         
         {// teste
         	try {
-				Input input = new Input("C:/teste/teste.txt");
+				Input input = new Input();
 				for(int i = 0; i<input.getInstrucoes().size(); i++) {
 					System.out.println(input.getInstrucoes().get(i));
 				}
