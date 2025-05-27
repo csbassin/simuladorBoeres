@@ -1,5 +1,7 @@
 package modelo.processo;
 
+import java.util.ArrayList;
+
 import config.configData;
 import modelo.tabelaPaginas.TabelaDePaginas;
 
@@ -7,5 +9,5 @@ public class ImagemProcesso {
     private int idProcesso;
 
     private TabelaDePaginas tabelaDePaginas;
-    private PaginaProcesso[] paginasProcesso = new PaginaProcesso[configData.quantidadePaginas];
+    private ArrayList<PaginaProcesso> paginasProcesso = new ArrayList<>(configData.quantidadeQuadros); //começa o array com tamanho máximo pra não precisar realocar
 }
