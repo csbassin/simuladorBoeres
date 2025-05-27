@@ -1,0 +1,86 @@
+public class ClockAlgorithm {
+
+    private final PageFrame[] frames; 
+    private int clockHand;            
+    private final int numFrames;
+
+    
+    public ClockAlgorithm(int numFrames) {
+        if (numFrames <= 0) {
+            throw new IllegalArgumentException("O número de quadros deve ser positivo.");
+        }
+        this.numFrames = numFrames;
+        this.frames = new PageFrame[numFrames];
+        for (int i = 0; i < numFrames; i++) {
+            this.frames[i] = new PageFrame();
+        }
+        this.clockHand = 0; 
+    }
+
+    
+    public void accessPage(int pageNumber) {
+      
+        for (int i = 0; i < numFrames; i++) {
+            if (!frames[i].isEmpty() && frames[i].getPageNumber().equals(pageNumber)) {
+                frames[i].setReferenceBit(true); 
+                System.out.println("HIT! Página " + pageNumber + " no quadro " + i + ". Bit R = 1.");
+                printFrames(); 
+                return;
+            }
+        }
+
+        
+        System.out.println("FAULT! Página " + pageNumber + " não encontrada.");
+        for (int i = 0; i < numFrames; i++) {
+            if (frames[i].isEmpty()) {
+                frames[i].setPageNumber(pageNumber);
+                frames[i].setReferenceBit(true); 
+                System.out.println("Página " + pageNumber + " carregada no quadro vazio " + i + ".");
+                printFrames(); 
+                return;
+            }
+        }
+
+        System.out.println("Memória cheia. Buscando quadro para substituir (ponteiro em " + clockHand + ").");
+        while (true) {
+            PageFrame currentFrame = frames[clockHand];
+
+            if (currentFrame.getReferenceBit()) {
+                
+                currentFrame.setReferenceBit(false);
+                System.out.println("  Quadro " + clockHand + " (Pág " + currentFrame.getPageNumber() + "): R=1 -> R=0. Avançando...");
+                advanceClockHand();
+            } else {
+                // Se R=0: substitui a página
+                int oldPage = currentFrame.getPageNumber();
+                currentFrame.setPageNumber(pageNumber);
+                currentFrame.setReferenceBit(true); 
+                System.out.println("  SUBSTITUIÇÃO! Quadro " + clockHand + ": Página " + oldPage + " -> " + pageNumber + ". Bit R = 1.");
+                advanceClockHand(); 
+                printFrames(); 
+                return; 
+            }
+        }
+    }
+
+   
+    private void advanceClockHand() {
+        clockHand = (clockHand + 1) % numFrames;
+    }
+
+    /**
+     * Imprime o estado atual dos quadros de página (para depuração/visualização).
+     */
+    public void printFrames() {
+        System.out.print("Memória: [ ");
+        for (int i = 0; i < numFrames; i++) {
+            System.out.print(frames[i].toString());
+            if (i == clockHand) {
+                System.out.print(" <--"); // Indica o ponteiro
+            }
+            if (i < numFrames - 1) {
+                System.out.print(" | ");
+            }
+        }
+        System.out.println(" ]");
+    }
