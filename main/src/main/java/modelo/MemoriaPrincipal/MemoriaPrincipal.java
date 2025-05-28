@@ -15,9 +15,37 @@ public class MemoriaPrincipal {
 			quadrosLivres.add(i);
 		}
 	}
-	
+	public void ocupar(Integer numQuadro) {
+		quadrosLivres.remove(numQuadro);
+		quadrosOcupados.add(numQuadro);
+	}
 	public String getTamanhoMpAsString() {
 		return tamanhoMP+"B";
 	}
+
+	public ArrayList<Integer> getQuadrosLivres() {
+		return quadrosLivres;
+	}
+
+	public void setQuadrosLivres(ArrayList<Integer> quadrosLivres) {
+		this.quadrosLivres = quadrosLivres;
+	}
+
+	public ArrayList<Integer> getQuadrosOcupados() {
+		return quadrosOcupados;
+	}
+
+	public void setQuadrosOcupados(ArrayList<Integer> quadrosOcupados) {
+		this.quadrosOcupados = quadrosOcupados;
+	}
+
+	public int getTamanhoMP() {
+		return tamanhoMP;
+	}
+
+	public void setTamanhoMP(int tamanhoMP) {
+		this.tamanhoMP = tamanhoMP;
+	}
+	
 	
 }

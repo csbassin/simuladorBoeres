@@ -1,14 +1,21 @@
 package modelo.Execucao;
 
+import other.Fila;
 import other.Input;
 import other.StaticObjects;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
+import config.configData;
+import modelo.tabelaPaginas.TabelaDePaginas;
 import modelo.MemoriaPrincipal.MemoriaPrincipal;
-import modelo.tabelaPaginas.PonteiroTabelaDePaginas;
+import modelo.processo.ImagemProcesso;
 
 public class CPU extends Thread{
+	
+	MemoriaPrincipal memoriaPrincipal = null;
 	
 	@Override
 	public void run() {
@@ -21,37 +28,48 @@ public class CPU extends Thread{
 		 		T: Terminação de processo
 		 */
 		
-		MemoriaPrincipal memoriaPrincipal = StaticObjects.getMemoriaPrincipal();
-		ArrayList<PonteiroTabelaDePaginas> ponteirosTP = StaticObjects.getPonteiroTabelaDePaginas();
-		ArrayList<String> entrada = null;
+		memoriaPrincipal = StaticObjects.getMemoriaPrincipal();
+		Input input = null;
 		try {
-			entrada = new Input().getInstrucoes();
+			input = new Input();
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.exit(0);
 		}
 		
-		for(int i = 0; i<entrada.size(); i++) { // para cada linha da entrada
-			String instrucao = entrada.get(i);
-			char operacao;
-			String processo;
+		Fila<String> prontos = new Fila<>();
+		Fila<String> bloqueados = new Fila<>();
+		Fila<String> novos = new Fila<>();
+		Fila<String> bloqueadosSuspensos = new Fila<>();
+		Fila<String> prontosSuspensos = new Fila<>();
+		Fila<String> finalizados = new Fila<>();
+		String executando;
+		int processosCriados = 0;
+		// enquanto houver instruções para executar
+		while(input.getInstrucoesPendentes()>0) {
+			int ultimoProcessoCriado = 0;
+			if(prontos.isEmpty() && processosCriados<input.getQuantidadeProcessos()) { // se não tiver ninguém pronto e ainda não foram submetidos todos os processos da entrada
+				// localizar a instrução de criação do processo
+				
+				
+			}
 			
-			//pegando o nome do processo
-			int indexEspaco = instrucao.indexOf(' ');
-			processo = instrucao.substring(0, i);
-			instrucao = instrucao.substring(i+1); // +1 para remover o espaço
-			//fim pegando nome do processo
+			// executar a próxima instrução até que o processo esteja suspenso/bloqueado/terminado
+			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
 			
-			//pegando operação
-			indexEspaco = instrucao.indexOf(' ');
-			operacao = instrucao.substring(0, i).charAt(0);
-			instrucao = instrucao.substring(i+1);
-			//fim pegando operação
+		}
+		
+		
+		
+		/*Não implementarei preempção porque precisaríamos fazer um escalonador pra isso
+		 Funcionamento: Mantenho um inteiro em cada processo indicando qual o número da instrução atual. 
+		 Mantenho a ordem de qual processo deve vir primeiro na entrada, para podermos manter o momento da submissão
+		 
+			
 			
 			if(operacao == 'C') { // criação do processo
-				/*
+				
 				 	verifica o tamanho do processo
-				 	verifica a quantidade de quadros necessária para a tabela de páginas
+				 	cria a tabela de páginas (vamos abstrair que as tabelas de páginas ficam em memória para simplificar as coisas)
 				 	Criaremos uma instância de processo e colocaremos seu estado como novo
 				 	
 				 	varre o arrayList de quadros livres.
@@ -62,9 +80,31 @@ public class CPU extends Thread{
 				 	
 				 	Se houver, alocamos esse quadro para a página. Seu estado passa para "Pronto"
 				 	Se não houver, o processo permanece com o estado novo e é colocado em uma fila para alocação futura
-				*/
+			
+				
 			}
 			
+		}*/
+	}
+	private TabelaDePaginas criaTabelaDePaginas(String processId, int quantidadePaginasProcesso) {
+		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
+		return tp;
+	}
+	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
+		ImagemProcesso imagemProcesso = null;
+		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
+		int quantidadeQuadrosProcesso = tamanhoProcessoBytes/configData.quadroSize;
+		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo
+			return null;
+		}else if(quadrosLivres>0) { // tem espaço para alocar pelo menos uma página do processo
+			imagemProcesso = new ImagemProcesso();
+			TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
+			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
+			memoriaPrincipal.ocupar(quadroPagina);
+			
+			imagemProcesso.setTabelaDePaginas(tp);
+			
 		}
+		return imagemProcesso;
 	}
 }

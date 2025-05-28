@@ -10,12 +10,22 @@ public class ProcessControlBlock {
     public static final byte FINALIZADO = 6;
 
     private byte estado;
+    private int indiceInstrucao = 0;
     //private pilha
 
     public byte getEstado(){
         return this.estado;
     }
-    public String getEstadoAsString(){
+    
+    public int getIndiceInstrucao() {
+		return indiceInstrucao;
+	}
+
+	public void setIndiceInstrucao(int indiceInstrucao) {
+		this.indiceInstrucao = indiceInstrucao;
+	}
+
+	public String getEstadoAsString(){
         switch(estado) {
             case 0:
                 return "Novo";
