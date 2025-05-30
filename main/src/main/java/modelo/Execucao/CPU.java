@@ -15,7 +15,20 @@ import modelo.processo.ImagemProcesso;
 
 public class CPU extends Thread{
 	
-	MemoriaPrincipal memoriaPrincipal = null;
+	private MemoriaPrincipal memoriaPrincipal = null;
+	private Input input = null;
+	private int numInstAtual = 0; // usada apenas para parar a simulação quando acabarem as instruções. Devemos incrementar individualmente o ponteiro em cada processo
+	Fila<String> prontos = new Fila<>();
+	Fila<String> bloqueados = new Fila<>();
+	Fila<String> novos = new Fila<>();
+	Fila<String> bloqueadosSuspensos = new Fila<>();
+	Fila<String> prontosSuspensos = new Fila<>();
+	Fila<String> finalizados = new Fila<>();
+	private Fila<Interrupcao> interrupcoes = new Fila<>();
+	
+	String executando;
+	int processosCriados = 0;
+	int processosFinalizados = 0;
 	
 	@Override
 	public void run() {
@@ -29,37 +42,63 @@ public class CPU extends Thread{
 		 */
 		
 		memoriaPrincipal = StaticObjects.getMemoriaPrincipal();
-		Input input = null;
 		try {
 			input = new Input();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
-		Fila<String> prontos = new Fila<>();
-		Fila<String> bloqueados = new Fila<>();
-		Fila<String> novos = new Fila<>();
-		Fila<String> bloqueadosSuspensos = new Fila<>();
-		Fila<String> prontosSuspensos = new Fila<>();
-		Fila<String> finalizados = new Fila<>();
-		String executando;
-		int processosCriados = 0;
+		
 		// enquanto houver instruções para executar
 		while(input.getInstrucoesPendentes()>0) {
-			int ultimoProcessoCriado = 0;
-			if(prontos.isEmpty() && processosCriados<input.getQuantidadeProcessos()) { // se não tiver ninguém pronto e ainda não foram submetidos todos os processos da entrada
-				// localizar a instrução de criação do processo
-				
-				
+			while(!interrupcoes.isEmpty()) {
+				Interrupcao interrupt = interrupcoes.unqueue();
+				if(interrupt.getTipoInterrupcao() == Interrupcao.DESBLOQUEAR) {
+					bloqueados.remove(interrupt.getIdProcesso());
+					prontos.enqueue(interrupt.getIdProcesso());
+				}
 			}
-			
-			// executar a próxima instrução até que o processo esteja suspenso/bloqueado/terminado
-			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
-			
+			String instrucao = input.getInstrucoes().get(numInstAtual);
+			if(bloqueados.isEmpty() && bloqueadosSuspensos.isEmpty() && prontosSuspensos.isEmpty()) { // se não houver nenhuma restrição
+				executaInstrucao(instrucao);
+			}else {
+				String processoId = instrucao.substring(0, instrucao.indexOf(' '));
+				if(bloqueadosSuspensos.contains(processoId) || bloqueados.contains(processoId) || prontosSuspensos.contains(processoId)) {
+					if(!(prontos.isEmpty())) {
+						selecionarOutroParaExecucao();
+					}
+				}else {
+					executaInstrucao(instrucao);
+				}	
+			}			
 		}
 		
 		
 		
+		
+	}
+	private TabelaDePaginas criaTabelaDePaginas(String processId, int quantidadePaginasProcesso) {
+		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
+		return tp;
+	}
+	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
+		ImagemProcesso imagemProcesso = null;
+		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
+		int quantidadeQuadrosProcesso = tamanhoProcessoBytes/configData.quadroSize;
+		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo
+			return null;
+		}else if(quadrosLivres>0) { // tem espaço para alocar pelo menos uma página do processo
+			imagemProcesso = new ImagemProcesso();
+			TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
+			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
+			memoriaPrincipal.ocupar(quadroPagina);
+			
+			imagemProcesso.setTabelaDePaginas(tp);
+			
+		}
+		return imagemProcesso;
+	}
+	private void executaInstrucao(String instrucao) {
 		/*Não implementarei preempção porque precisaríamos fazer um escalonador pra isso
 		 Funcionamento: Mantenho um inteiro em cada processo indicando qual o número da instrução atual. 
 		 Mantenho a ordem de qual processo deve vir primeiro na entrada, para podermos manter o momento da submissão
@@ -85,26 +124,13 @@ public class CPU extends Thread{
 			}
 			
 		}*/
+		input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
+		numInstAtual ++;
 	}
-	private TabelaDePaginas criaTabelaDePaginas(String processId, int quantidadePaginasProcesso) {
-		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
-		return tp;
+	private void selecionarOutroParaExecucao() {
+		executando = prontos.unqueue();
 	}
-	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
-		ImagemProcesso imagemProcesso = null;
-		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
-		int quantidadeQuadrosProcesso = tamanhoProcessoBytes/configData.quadroSize;
-		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo
-			return null;
-		}else if(quadrosLivres>0) { // tem espaço para alocar pelo menos uma página do processo
-			imagemProcesso = new ImagemProcesso();
-			TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
-			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
-			memoriaPrincipal.ocupar(quadroPagina);
-			
-			imagemProcesso.setTabelaDePaginas(tp);
-			
-		}
-		return imagemProcesso;
+	public void addFilaInterrupcoes(Interrupcao interrupcao) {
+		this.interrupcoes.enqueue(interrupcao);
 	}
 }
