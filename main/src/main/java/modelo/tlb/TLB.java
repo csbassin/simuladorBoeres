@@ -1,5 +1,6 @@
 package modelo.tlb;
 
+import modelo.tabelaPaginas.EntradaTP;
 import java.util.ArrayList;
 
 public class TLB {
@@ -13,6 +14,7 @@ public class TLB {
     }
 
     private void substituicaoLRU(EntradaTLB entradaTLB){
+        //Será usado LRU para substituir as entradas da TLB //Por uma logica com a modificação aq tambem?
         int maior_indice = 0;
         for (int i = 0; i<qtdPaginas; i++) {
             if(entradas.get(i).getTempoUltimoUso() > maior_indice)
@@ -21,13 +23,42 @@ public class TLB {
         entradas.set(maior_indice, entradaTLB);
     }
 
-    public void adicionarEntrada(EntradaTLB entradaTLB) {
+    public void adicionarEntrada(EntradaTP entradaTP) {
+        //Adiciona se estiver vazio e se não estiver substitui
+        EntradaTLB entradaTLB = new EntradaTLB(entradaTP);
         if (entradas.size() < qtdPaginas)
             entradas.add(entradaTLB);
         else
             substituicaoLRU(entradaTLB);
     }
 
+    public Integer consulta(int numPagina) {
+        //Consultar entrada na TLB
+        Integer consulta = null;
+        for (EntradaTLB entrada: entradas) {
+            if (numPagina == entrada.getNumPagina() && entrada.isValid()) {
+                entrada.zerarTempoUltimoUso();
+                consulta = entrada.getNumPagina();
+            }
+            else
+                entrada.incrementarTempoUltimoUso();
+        }
+        return consulta;
+    }
 
+    public void trocaDeProcesso(){
+        //No caso de uma troca de processo a valdiade das entradas é zerada
+        for (EntradaTLB entrada: entradas) {
+            entrada.setValid(false);
+            entrada.zerarTempoUltimoUso();
+        }
 
+    }
+
+    public void marcarModificacao(int numPagina) {
+        for (EntradaTLB entrada: entradas) {
+            if (numPagina == entrada.getNumPagina())
+                entrada.setModificacao(true);
+        }
+    }
 }

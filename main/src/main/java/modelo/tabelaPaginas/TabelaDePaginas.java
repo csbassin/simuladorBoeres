@@ -9,7 +9,7 @@ public class TabelaDePaginas {
     public TabelaDePaginas(int quantidadePaginasProcesso) {
     	entradas = new EntradaTP[quantidadePaginasProcesso];
     	for(int i = 0; i<quantidadePaginasProcesso; i++) {
-    		entradas[i] = new EntradaTP(false, false, false, 0, 0);
+    		entradas[i] = new EntradaTP(false, false, false, 0, 0, i);
     	}
     }
     

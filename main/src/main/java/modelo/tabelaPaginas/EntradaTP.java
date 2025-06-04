@@ -6,13 +6,15 @@ public class EntradaTP {
     private boolean uso;
     private int tempoUltimoUso;
     private int numQuadro;
+	private int numPagina;
     
-    public EntradaTP(boolean modificacao, boolean presenca, boolean uso, int tempoUltimoUso, int numQuadro ) {
+    public EntradaTP(boolean modificacao, boolean presenca, boolean uso, int tempoUltimoUso, int numQuadro, int numPagina) {
     	this.modificacao = modificacao;
     	this.presenca = presenca;
     	this.uso = uso;
     	this.tempoUltimoUso = tempoUltimoUso;
     	this.numQuadro = numQuadro;
+		this.numPagina = numPagina;
     }
     
 	public boolean getModificacao() {
@@ -45,6 +47,10 @@ public class EntradaTP {
 	public void setNumQuadro(int numQuadro) {
 		this.numQuadro = numQuadro;
 	}
-    
-    
+	public int getNumPagina() {
+		return numPagina;
+	}
+	public void setNumPagina(int numPagina) {
+		this.numPagina = numPagina;
+	}
 }

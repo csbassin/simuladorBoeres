@@ -14,8 +14,8 @@ public class EntradaTLB {
     private boolean presenca;
     private int numQuadro;
 
-    public EntradaTLB(int numPagina, EntradaTP entradaTP) {
-        this.numPagina = numPagina;
+    public EntradaTLB(EntradaTP entradaTP) {
+        this.numPagina = entradaTP.getNumPagina();
         this.entradaTP = entradaTP;
 
         this.tempoUltimoUso = 0;
@@ -41,8 +41,11 @@ public class EntradaTLB {
         return tempoUltimoUso;
     }
 
-    public void setTempoUltimoUso(int tempoUltimoUso) {
-        this.tempoUltimoUso = tempoUltimoUso;
+    public void zerarTempoUltimoUso(){
+        tempoUltimoUso = 0;
+    }
+    public void incrementarTempoUltimoUso(){
+        tempoUltimoUso++;
     }
 
     public boolean isValid() {
