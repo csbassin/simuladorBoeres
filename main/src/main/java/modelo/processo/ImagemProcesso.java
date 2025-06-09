@@ -11,6 +11,7 @@ public class ImagemProcesso {
     private ArrayList<PaginaProcesso> paginasProcesso = new ArrayList<>(configData.quantidadeQuadros); //começa o array com tamanho máximo pra não precisar realocar
     private ArrayList<String> instrucoesProcesso = new ArrayList<>();
     private int instrucaoAtual = 0;
+	private ProcessControlBlock pcb = new ProcessControlBlock();
     
 	public String getIdProcesso() {
 		return idProcesso;
@@ -39,6 +40,11 @@ public class ImagemProcesso {
 	public int getInstrucaoAtual() {
 		return instrucaoAtual;
 	}
+
+	public ProcessControlBlock getPcb() {
+		return pcb;
+	}
+
 	public void incrementInstrucaoAtual() {
 		this.instrucaoAtual++;
 	}

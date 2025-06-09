@@ -2,8 +2,9 @@ package other;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import config.configData;
 
 public class Input {
@@ -12,27 +13,27 @@ public class Input {
 	ArrayList<String> instrucoes = new ArrayList<>();
 	private int instrucoesPendentes;
 	private int quantidadeProcessos = 0;
-	
+
 	public Input() throws Exception {
 		File input = new File(configData.pathInput);
 		if(!input.exists()) {
 			throw new Exception("O arquivo não existe.");
 		}else {
-			Object linhas[] = Files.lines(input.toPath()).toArray();
-			for(int i = 0; i<linhas.length; i++) {
-				String instrucao = ((String)linhas[i]).trim();
-				instrucoes.add(instrucao);
-				String processo = instrucao.substring(0, instrucao.indexOf(' '));
-				for(int a = 0; a<instrucoes.size(); a++) {
-					int processNum = Integer.parseInt(instrucao.substring(1,  instrucao.indexOf(' ')));
-					if( processNum > quantidadeProcessos) {
-						quantidadeProcessos = processNum; 
-					}
-				}
+			Object[] linhas = Files.lines(input.toPath()).toArray();
+
+			// Aplica o trim nas linhas e coloca em um array
+			instrucoes = (ArrayList<String>) Arrays.stream(linhas).map(
+					x -> ((String) x).trim()
+						  ).collect(Collectors.toList());
+
+			//Cria uma lista somente com os processos existentes
+			HashSet<String> processos = instrucoes.stream().map(
+								  x -> x.substring(0, x.indexOf(' ')
+										)).collect(Collectors.toCollection(HashSet::new));
+			quantidadeProcessos = processos.size();
 			}
 			instrucoesPendentes = instrucoes.size();
 		}
-	}
 
 
 	public String getFilePath() {
