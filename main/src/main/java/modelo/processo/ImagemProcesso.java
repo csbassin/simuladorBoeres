@@ -1,14 +1,14 @@
-package modelo.processo;
+package main.java.modelo.processo;
 
 import java.util.ArrayList;
 
-import config.configData;
-import modelo.tabelaPaginas.TabelaDePaginas;
+import main.java.config.ConfigData;
+import main.java.modelo.tabelaPaginas.TabelaDePaginas;
 
 public class ImagemProcesso {
     private String idProcesso;
     private TabelaDePaginas tabelaDePaginas;
-    private ArrayList<PaginaProcesso> paginasProcesso = new ArrayList<>(configData.quantidadeQuadros); //começa o array com tamanho máximo pra não precisar realocar
+    private ArrayList<PaginaProcesso> paginasProcesso = new ArrayList<>(ConfigData.quantidadeQuadros); //começa o array com tamanho máximo pra não precisar realocar
     private ArrayList<String> instrucoesProcesso = new ArrayList<>();
     private int instrucaoAtual = 0;
 	private ProcessControlBlock pcb = new ProcessControlBlock();

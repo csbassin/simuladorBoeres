@@ -1,4 +1,4 @@
-package visao;
+package main.java.visao;
 
 import java.awt.EventQueue;
 
@@ -23,6 +23,7 @@ public class ViewTabelaPaginas {
 	private final JLabel lblNewLabel = new JLabel("Tabela de Páginas");
 	private JTable table;
 	private JScrollPane scrollPane;
+	private JComboBox<String> cmbProcesso;
 
 	public ViewTabelaPaginas() {
 		initialize();
@@ -59,11 +60,11 @@ public class ViewTabelaPaginas {
 		
 		frame.getContentPane().add(separator);
 		
-		JComboBox comboBox = new JComboBox();
-		springLayout.putConstraint(SpringLayout.NORTH, comboBox, 65, SpringLayout.NORTH, frame.getContentPane());
-		springLayout.putConstraint(SpringLayout.WEST, comboBox, 83, SpringLayout.WEST, frame.getContentPane());
-		springLayout.putConstraint(SpringLayout.EAST, comboBox, 213, SpringLayout.WEST, frame.getContentPane());
-		frame.getContentPane().add(comboBox);
+		cmbProcesso = new JComboBox<>();
+		springLayout.putConstraint(SpringLayout.NORTH, cmbProcesso, 65, SpringLayout.NORTH, frame.getContentPane());
+		springLayout.putConstraint(SpringLayout.WEST, cmbProcesso, 83, SpringLayout.WEST, frame.getContentPane());
+		springLayout.putConstraint(SpringLayout.EAST, cmbProcesso, 213, SpringLayout.WEST, frame.getContentPane());
+		frame.getContentPane().add(cmbProcesso);
 		
 		JLabel lblProcesso = new JLabel("Processo:");
 		springLayout.putConstraint(SpringLayout.NORTH, lblProcesso, 64, SpringLayout.NORTH, frame.getContentPane());
@@ -89,5 +90,9 @@ public class ViewTabelaPaginas {
 		table.setForeground(Color.WHITE);
 		frame.setBounds(100, 100, 450, 680);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	}
+	
+	public void addToComboProcessos(String processId) {
+		cmbProcesso.addItem(processId);
 	}
 }

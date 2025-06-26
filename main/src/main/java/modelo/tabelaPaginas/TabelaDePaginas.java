@@ -1,6 +1,4 @@
-package modelo.tabelaPaginas;
-
-import config.configData;
+package main.java.modelo.tabelaPaginas;
 
 public class TabelaDePaginas {
     private int idProcesso;
@@ -12,7 +10,15 @@ public class TabelaDePaginas {
     		entradas[i] = new EntradaTP(false, false, false, 0, 0, i);
     	}
     }
-    
+
+    public EntradaTP[] getEntradas() {
+        return entradas;
+    }
+
+    public void setEntradas(EntradaTP[] entradas) {
+        this.entradas = entradas;
+    }
+
     public void setNumQuadro(int numQuadro, int pagina) {
     	entradas[pagina].setNumQuadro(numQuadro);
     }
@@ -43,5 +49,14 @@ public class TabelaDePaginas {
     }
     public boolean getUso(int pagina) {
     	return entradas[pagina].getUso();
+    }
+
+    public EntradaTP getEntradaPagina(int numPag) {
+        return entradas[numPag];
+    }
+
+    public boolean consulta(int numPagina) {
+        //Consultar entrada na tp
+        return entradas[numPagina].getPresenca();
     }
 }

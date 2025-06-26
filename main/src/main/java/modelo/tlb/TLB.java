@@ -1,6 +1,6 @@
-package modelo.tlb;
+package main.java.modelo.tlb;
 
-import modelo.tabelaPaginas.EntradaTP;
+import main.java.modelo.tabelaPaginas.EntradaTP;
 import java.util.ArrayList;
 
 public class TLB {
@@ -32,13 +32,13 @@ public class TLB {
             substituicaoLRU(entradaTLB);
     }
 
-    public Integer consulta(int numPagina) {
+    public boolean consulta(int numPagina) {
         //Consultar entrada na TLB
-        Integer consulta = null;
+        boolean consulta = false;
         for (EntradaTLB entrada: entradas) {
             if (numPagina == entrada.getNumPagina() && entrada.isValid()) {
                 entrada.zerarTempoUltimoUso();
-                consulta = entrada.getNumPagina();
+                consulta = true;
             }
             else
                 entrada.incrementarTempoUltimoUso();

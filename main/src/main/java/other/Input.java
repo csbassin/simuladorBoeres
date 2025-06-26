@@ -1,11 +1,11 @@
-package other;
+package main.java.other;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import config.configData;
+import main.java.config.ConfigData;
 
 public class Input {
 	//private ArrayList<String> instrucoes = new ArrayList<String>();
@@ -15,16 +15,17 @@ public class Input {
 	private int quantidadeProcessos = 0;
 
 	public Input() throws Exception {
-		File input = new File(configData.pathInput);
+		File input = new File(ConfigData.pathInput);
 		if(!input.exists()) {
 			throw new Exception("O arquivo não existe.");
 		}else {
 			Object[] linhas = Files.lines(input.toPath()).toArray();
 
 			// Aplica o trim nas linhas e coloca em um array
-			instrucoes = (ArrayList<String>) Arrays.stream(linhas).map(
-					x -> ((String) x).trim()
-						  ).collect(Collectors.toList());
+			// Menos linhas não significa mais rápido. Aquela função fazia um for do mesmo jeito, só estava sacrificando a legibilidade
+			for(int i = 0; i<linhas.length; i++) {
+				instrucoes.add(((String)linhas[i]).trim());
+			}
 
 			//Cria uma lista somente com os processos existentes
 			HashSet<String> processos = instrucoes.stream().map(

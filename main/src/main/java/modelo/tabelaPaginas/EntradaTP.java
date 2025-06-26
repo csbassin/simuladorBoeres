@@ -1,4 +1,4 @@
-package modelo.tabelaPaginas;
+package main.java.modelo.tabelaPaginas;
 
 public class EntradaTP {
     private boolean modificacao;

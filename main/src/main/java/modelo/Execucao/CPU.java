@@ -1,20 +1,25 @@
-package modelo.Execucao;
+package main.java.modelo.Execucao;
 
-import other.*;
+import main.java.modelo.tabelaPaginas.EntradaTP;
+import main.java.modelo.tlb.TLB;
+import main.java.other.*;
+import main.java.visao.ViewTabelaPaginas;
 
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import config.configData;
-import modelo.tabelaPaginas.TabelaDePaginas;
-import modelo.MemoriaPrincipal.MemoriaPrincipal;
-import modelo.processo.ImagemProcesso;
+import main.java.other.Estados;
+import main.java.config.ConfigData;
+import main.java.modelo.tabelaPaginas.TabelaDePaginas;
+import main.java.modelo.memoriaPrincipal.MemoriaPrincipal;
+import main.java.modelo.processo.ImagemProcesso;
 
 public class CPU extends Thread{
 	
 	private MemoriaPrincipal memoriaPrincipal = null;
 	private Input input = null;
 	private int numInstAtual = 0; // usada apenas para parar a simulação quando acabarem as instruções. Devemos incrementar individualmente o ponteiro em cada processo
+	TLB tlb = new TLB(ConfigData.qntdPagTlB);
 	Fila<String> prontos = new Fila<>();
 	Fila<String> bloqueados = new Fila<>();
 	Fila<String> novos = new Fila<>();
@@ -26,6 +31,15 @@ public class CPU extends Thread{
 	String executando;
 	int processosCriados = 0;
 	int processosFinalizados = 0;
+	
+	//janelas que teremos que interagir
+	ViewTabelaPaginas viewTabelaPaginas;
+	//
+	
+	public CPU(ViewTabelaPaginas v) {
+		this.viewTabelaPaginas = v;
+		
+	}
 	
 	@Override
 	public void run() {
@@ -57,7 +71,7 @@ public class CPU extends Thread{
 			}
 			String instrucao = input.getInstrucoes().get(numInstAtual);
 			if(bloqueados.isEmpty() && bloqueadosSuspensos.isEmpty() && prontosSuspensos.isEmpty()) { // se não houver nenhuma restrição
-				executaInstrucao(instrucao);
+				executaComando(instrucao);
 			}else {
 				String processoId = instrucao.substring(0, instrucao.indexOf(' '));
 				if(bloqueadosSuspensos.contains(processoId) || bloqueados.contains(processoId) || prontosSuspensos.contains(processoId)) {
@@ -65,7 +79,7 @@ public class CPU extends Thread{
 						selecionarOutroParaExecucao();
 					}
 				}else {
-					executaInstrucao(instrucao);
+					executaComando(instrucao);
 				}	
 			}			
 		}
@@ -80,27 +94,32 @@ public class CPU extends Thread{
 	}
 	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
 		ImagemProcesso imagemProcesso = new ImagemProcesso();
-		imagemProcesso.getPcb().setEstado(Estados.NOVO);
+		imagemProcesso.getPcb().setEstado(String.valueOf(Estados.NOVO));
 		novos.enqueue(imagemProcesso.getIdProcesso());
+		//sleep algum tempo TODO
 
 		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
-		int quantidadeQuadrosProcesso = (int) Math.ceil(tamanhoProcessoBytes/configData.quadroSize);
+		int quantidadeQuadrosProcesso = (int) Math.ceil(tamanhoProcessoBytes/ ConfigData.quadroSize);
 
 		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo (novo->pronto suspenso direto? ou somenete novo)
-			return null;
+			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTOSUSPENSO));
+			prontosSuspensos.enqueue(imagemProcesso.getIdProcesso());
+			return imagemProcesso;
 		}else { // tem espaço para alocar pelo menos uma página do processo
 			TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
 			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
 			memoriaPrincipal.ocupar(quadroPagina);
-			imagemProcesso.getPcb().setEstado(Estados.PRONTO);
+			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTO));
 			prontos.enqueue(imagemProcesso.getIdProcesso());
 			imagemProcesso.setTabelaDePaginas(tp);
 
 		}
+		viewTabelaPaginas.addToComboProcessos(processId);
+		StaticObjects.getAllProcessos().add(imagemProcesso);
 		return imagemProcesso;
 	}
 
-	private void executaInstrucao(String instrucao) {
+	private void executaComando(String instrucao) {
 //		Não implementarei preempção porque precisaríamos fazer um escalonador pra isso
 //		 Funcionamento: Mantenho um inteiro em cada processo indicando qual o número da instrução atual.
 //		 Mantenho a ordem de qual processo deve vir primeiro na entrada, para podermos manter o momento da submissão
@@ -130,8 +149,24 @@ public class CPU extends Thread{
 //
 //				 	Se houver, alocamos esse quadro para a página. Seu estado passa para "Pronto"
 //				 	Se não houver, o processo permanece com o estado novo e é colocado em uma fila para alocação futura
-			
-				
+
+			}
+			else if(Objects.equals(dados_instrucao.get("instrucao"), "P")) { // execuçãp de instrução
+				ImagemProcesso processo = StaticObjects.getAllProcessos().stream()
+						.filter(x -> x.getIdProcesso().equals(dados_instrucao.get("processo_id"))).findFirst().get();
+
+				long[] resultado = Conversoes.converterEnderecoLogicoFisico(Long.parseLong(dados_instrucao.get("valor")), this, processo);
+				long endFisico = resultado[0];
+				int numQuadro = (int) resultado[1];
+
+				boolean quadroTaNaMP = false; //talvez um erro ou um print
+				for (int nQuadroLivre: memoriaPrincipal.getQuadrosOcupados()){
+					if (numQuadro == nQuadroLivre) {
+						quadroTaNaMP = true;
+					}
+				}
+
+
 			}
 			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
 			numInstAtual ++;
@@ -145,6 +180,26 @@ public class CPU extends Thread{
 			this.interrupcoes.enqueue(interrupcao);
 		}
 
+	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo){
+		boolean consultaTLB = tlb.consulta(numPagina);
+		EntradaTP resultado = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
+		if (consultaTLB){ //TLB HIT
+			return resultado;
+		}
+		//TLB MISS, por um sleep aqui TODO
+
+		boolean consultaTP = processo.getTabelaDePaginas().consulta(numPagina);
+		if (consultaTP){ //TP HIT
+			return resultado;
+		}
+		//TP MISS, por um sleep aqui TODO
+
+		//Algoritmo de substituicao na tp TODO
+		tlb.adicionarEntrada(resultado);
+		return resultado;
 	}
+
+
+}
 
 

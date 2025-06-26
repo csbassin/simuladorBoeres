@@ -1,23 +1,27 @@
-package modelo.MemoriaPrincipal;
+package main.java.modelo.memoriaPrincipal;
 
 import java.util.ArrayList;
 
-import config.configData;
+import main.java.config.ConfigData;
 
 public class MemoriaPrincipal {
 	// a memória mais falsa da história
-	private ArrayList<Integer> quadrosLivres = new ArrayList<>(configData.quantidadeQuadros);
-	private ArrayList<Integer> quadrosOcupados = new ArrayList<>(configData.quantidadeQuadros);
-	private int tamanhoMP = configData.quantidadeQuadros * configData.quadroSize;
+	private ArrayList<Integer> quadrosLivres = new ArrayList<>(ConfigData.quantidadeQuadros);
+	private ArrayList<Integer> quadrosOcupados = new ArrayList<>(ConfigData.quantidadeQuadros);
+	private int tamanhoMP = ConfigData.quantidadeQuadros * ConfigData.quadroSize;
 	
 	public MemoriaPrincipal() {
-		for(int i = 0; i<configData.quantidadeQuadros; i++) {
+		for(int i = 0; i< ConfigData.quantidadeQuadros; i++) {
 			quadrosLivres.add(i);
 		}
 	}
 	public void ocupar(Integer numQuadro) {
 		quadrosLivres.remove(numQuadro);
 		quadrosOcupados.add(numQuadro);
+	}
+	public void liberar(Integer numQuadro) {
+		quadrosOcupados.remove(numQuadro);
+		quadrosLivres.add(numQuadro);
 	}
 	public String getTamanhoMpAsString() {
 		return tamanhoMP+"B";

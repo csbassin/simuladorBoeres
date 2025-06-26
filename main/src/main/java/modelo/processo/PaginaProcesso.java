@@ -1,4 +1,4 @@
-package modelo.processo;
+package main.java.modelo.processo;
 
 public class PaginaProcesso {
 }

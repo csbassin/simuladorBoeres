@@ -1,4 +1,4 @@
-package modelo.Execucao;
+package main.java.modelo.Execucao;
 
 public class AcessoIO extends Thread{
 	private int tempoAcessoMillis = 0;

@@ -1,22 +1,8 @@
-package visao;
-import other.Input;
+package main.java.visao;
+import main.java.other.Input;
 
 public class Launch {
     public static void main(String[] args){
-        new ViewTLB();
-        new ViewTabelaPaginas();
-        
-        {// teste
-        	try {
-				Input input = new Input();
-				for(int i = 0; i<input.getInstrucoes().size(); i++) {
-					System.out.println(input.getInstrucoes().get(i));
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-        	
-        }
-        
+        	new viewConfig();
     }
 }
