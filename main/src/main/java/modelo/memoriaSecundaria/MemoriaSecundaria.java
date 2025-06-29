@@ -1,4 +1,6 @@
-package main.java.modelo.memoriaSecundaria;
+package modelo.memoriaSecundaria;
+
+import config.ConfigData;
 
 import java.util.ArrayList;
 
@@ -6,7 +8,6 @@ public class MemoriaSecundaria extends Thread{
 	private ArrayList<String> processoPagina = new ArrayList<>();
 
 	public MemoriaSecundaria() {
-
 	}
 
 	public void gravar(String idProcesso, int numPagina) {
@@ -18,7 +19,7 @@ public class MemoriaSecundaria extends Thread{
 	public void run() {
 		while (true) {
 			try {
-				Thread.sleep(1000); // Simula o tempo de gravação
+				Thread.sleep(ConfigData.tempoAcessoMS*1000); // Simula o tempo de gravação
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -30,10 +31,3 @@ public class MemoriaSecundaria extends Thread{
 	}
 }
 
-
-
-/*
-A minha net ta uma merda, fiz o L legal. Nascimento, Renan. 15:36
-
-
- */

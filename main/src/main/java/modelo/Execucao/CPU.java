@@ -1,18 +1,18 @@
-package main.java.modelo.Execucao;
+package modelo.Execucao;
 
-import main.java.modelo.tabelaPaginas.EntradaTP;
-import main.java.modelo.tlb.TLB;
-import main.java.other.*;
-import main.java.visao.ViewTabelaPaginas;
+import config.ConfigData;
+import modelo.memoriaPrincipal.MemoriaPrincipal;
+import modelo.tabelaPaginas.EntradaTP;
+import modelo.tlb.TLB;
+import other.*;
+import visao.ViewTabelaPaginas;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Objects;
 
-import main.java.other.Estados;
-import main.java.config.ConfigData;
-import main.java.modelo.tabelaPaginas.TabelaDePaginas;
-import main.java.modelo.memoriaPrincipal.MemoriaPrincipal;
-import main.java.modelo.processo.ImagemProcesso;
+import modelo.tabelaPaginas.TabelaDePaginas;
+
+import modelo.processo.ImagemProcesso;
 
 public class CPU extends Thread{
 	
@@ -27,6 +27,7 @@ public class CPU extends Thread{
 	Fila<String> prontosSuspensos = new Fila<>();
 	Fila<String> finalizados = new Fila<>();
 	private Fila<Interrupcao> interrupcoes = new Fila<>();
+	private SubstituicaoPagina substPagina = new SubstituicaoPagina();
 	
 	String executando;
 	int processosCriados = 0;
@@ -71,7 +72,11 @@ public class CPU extends Thread{
 			}
 			String instrucao = input.getInstrucoes().get(numInstAtual);
 			if(bloqueados.isEmpty() && bloqueadosSuspensos.isEmpty() && prontosSuspensos.isEmpty()) { // se não houver nenhuma restrição
-				executaComando(instrucao);
+				try {
+					executaComando(instrucao);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}else {
 				String processoId = instrucao.substring(0, instrucao.indexOf(' '));
 				if(bloqueadosSuspensos.contains(processoId) || bloqueados.contains(processoId) || prontosSuspensos.contains(processoId)) {
@@ -79,8 +84,12 @@ public class CPU extends Thread{
 						selecionarOutroParaExecucao();
 					}
 				}else {
+					try {
 					executaComando(instrucao);
-				}	
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
 			}			
 		}
 		
@@ -90,6 +99,7 @@ public class CPU extends Thread{
 	}
 	private TabelaDePaginas criaTabelaDePaginas(String processId, int quantidadePaginasProcesso) {
 		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
+
 		return tp;
 	}
 	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
@@ -98,28 +108,32 @@ public class CPU extends Thread{
 		novos.enqueue(imagemProcesso.getIdProcesso());
 		//sleep algum tempo TODO
 
+
 		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
 		int quantidadeQuadrosProcesso = (int) Math.ceil(tamanhoProcessoBytes/ ConfigData.quadroSize);
 
+		novos.remove(imagemProcesso.getIdProcesso());
+
+		TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
+		imagemProcesso.setTabelaDePaginas(tp);
 		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo (novo->pronto suspenso direto? ou somenete novo)
 			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTOSUSPENSO));
 			prontosSuspensos.enqueue(imagemProcesso.getIdProcesso());
 			return imagemProcesso;
 		}else { // tem espaço para alocar pelo menos uma página do processo
-			TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
 			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
 			memoriaPrincipal.ocupar(quadroPagina);
 			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTO));
 			prontos.enqueue(imagemProcesso.getIdProcesso());
-			imagemProcesso.setTabelaDePaginas(tp);
-
+			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setNumQuadro(quadroPagina);
+			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setPresenca(true);
 		}
 		viewTabelaPaginas.addToComboProcessos(processId);
 		StaticObjects.getAllProcessos().add(imagemProcesso);
 		return imagemProcesso;
 	}
 
-	private void executaComando(String instrucao) {
+	private void executaComando(String instrucao) throws InterruptedException {
 //		Não implementarei preempção porque precisaríamos fazer um escalonador pra isso
 //		 Funcionamento: Mantenho um inteiro em cada processo indicando qual o número da instrução atual.
 //		 Mantenho a ordem de qual processo deve vir primeiro na entrada, para podermos manter o momento da submissão
@@ -152,20 +166,58 @@ public class CPU extends Thread{
 
 			}
 			else if(Objects.equals(dados_instrucao.get("instrucao"), "P")) { // execuçãp de instrução
-				ImagemProcesso processo = StaticObjects.getAllProcessos().stream()
-						.filter(x -> x.getIdProcesso().equals(dados_instrucao.get("processo_id"))).findFirst().get();
+				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
 
-				long[] resultado = Conversoes.converterEnderecoLogicoFisico(Long.parseLong(dados_instrucao.get("valor")), this, processo);
-				long endFisico = resultado[0];
-				int numQuadro = (int) resultado[1];
+				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
 
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
+
+
+				//TODO pode ter um tempo de execução de intstrucao aqui
+
+				/*
 				boolean quadroTaNaMP = false; //talvez um erro ou um print
 				for (int nQuadroLivre: memoriaPrincipal.getQuadrosOcupados()){
 					if (numQuadro == nQuadroLivre) {
 						quadroTaNaMP = true;
 					}
 				}
+				*/
 
+			} else if (Objects.equals(dados_instrucao.get("instrucao"), "R")) {
+//				ImagemProcesso processo = StaticObjects.getAllProcessos().stream()
+//						.filter(x -> x.getIdProcesso().equals(dados_instrucao.get("processo_id"))).findFirst().get();
+//
+//				long[] resultado = Conversoes.converterEnderecoLogicoFisico(Long.parseLong(dados_instrucao.get("valor")), this, processo);
+//				long endFisico = resultado[0];
+//				int numQuadro = (int) resultado[1];
+				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+
+				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
+				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
+				bloqueados.enqueue(processo.getIdProcesso());
+
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
+
+				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 0));
+
+
+			} else if (Objects.equals(dados_instrucao.get("instrucao"), "W")) {
+				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+
+				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
+
+				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
+				bloqueados.enqueue(processo.getIdProcesso());
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
+				processo.getTabelaDePaginas().getEntradaPagina((int) endTraduzido.getNumeroPagina()).setModificacao(true);
+
+				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 1));
+
+			} else if (Objects.equals(dados_instrucao.get("instrucao"), "T")) {
+				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+				processo.getPcb().setEstado(String.valueOf(Estados.PRONTO));
+				finalizados.enqueue(processo.getIdProcesso());
 
 			}
 			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
@@ -180,23 +232,38 @@ public class CPU extends Thread{
 			this.interrupcoes.enqueue(interrupcao);
 		}
 
-	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo){
+	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo) throws InterruptedException {
 		boolean consultaTLB = tlb.consulta(numPagina);
 		EntradaTP resultado = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
+
+		Thread.sleep((long) ConfigData.tempoAcessoTLB*1000);//sleep tempoTLB
 		if (consultaTLB){ //TLB HIT
 			return resultado;
 		}
-		//TLB MISS, por um sleep aqui TODO
+		//TLB MISS
+		Thread.sleep((long) ConfigData.tempoAcessoMP*1000);//sleep tempoMP
+
 
 		boolean consultaTP = processo.getTabelaDePaginas().consulta(numPagina);
 		if (consultaTP){ //TP HIT
+			Thread.sleep((long) ConfigData.tempoAcessoMP*1000);//sleep tempoMP
 			return resultado;
 		}
-		//TP MISS, por um sleep aqui TODO
+		//TP MISS
+		Thread.sleep((long) ConfigData.tempoAcessoMS*1000);//sleep tempoMP
 
-		//Algoritmo de substituicao na tp TODO
+		if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "LRU"))
+			substPagina.substituirComLRU(numPagina, processo.getIdProcesso());
+		else if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "CLOCK")) {
+			substPagina.substituirComClockTwoDigits(numPagina, processo.getIdProcesso());
+		}
+
 		tlb.adicionarEntrada(resultado);
 		return resultado;
+	}
+	public ImagemProcesso buscarProcessoPorID(String ID){
+		return StaticObjects.getAllProcessos().stream()
+				.filter(x -> x.getIdProcesso().equals(ID)).findFirst().get();
 	}
 
 

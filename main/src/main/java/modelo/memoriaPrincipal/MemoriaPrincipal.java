@@ -1,8 +1,8 @@
-package main.java.modelo.memoriaPrincipal;
+package modelo.memoriaPrincipal;
 
 import java.util.ArrayList;
 
-import main.java.config.ConfigData;
+import config.ConfigData;
 
 public class MemoriaPrincipal {
 	// a memória mais falsa da história

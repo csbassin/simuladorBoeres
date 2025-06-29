@@ -1,6 +1,6 @@
-package main.java.modelo.tlb;
+package modelo.tlb;
 
-import main.java.modelo.tabelaPaginas.EntradaTP;
+import modelo.tabelaPaginas.EntradaTP;
 import java.util.ArrayList;
 
 public class TLB {

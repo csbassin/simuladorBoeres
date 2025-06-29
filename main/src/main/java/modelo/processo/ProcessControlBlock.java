@@ -1,5 +1,5 @@
-package main.java.modelo.processo;
-import main.java.other.Estados;
+package modelo.processo;
+import other.Estados;
 
 public class ProcessControlBlock {
 

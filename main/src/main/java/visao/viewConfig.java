@@ -1,6 +1,6 @@
-package main.java.visao;
+package visao;
 
-import main.java.config.ConfigData;
+import config.ConfigData;
 
 import java.awt.EventQueue;
 

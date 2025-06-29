@@ -1,12 +1,12 @@
-package main.java.modelo.Execucao;
+package modelo.Execucao;
 
 import java.util.ArrayList;
 
-import main.java.modelo.processo.ImagemProcesso;
-import main.java.other.StaticObjects;
-import main.java.modelo.tabelaPaginas.*;
-import main.java.modelo.tabelaPaginas.EntradaTP;
-import main.java.modelo.memoriaSecundaria.MemoriaSecundaria;
+import modelo.processo.ImagemProcesso;
+import other.StaticObjects;
+import modelo.tabelaPaginas.*;
+import modelo.tabelaPaginas.EntradaTP;
+import modelo.memoriaSecundaria.MemoriaSecundaria;
 
 public class SubstituicaoPagina {
 
@@ -151,12 +151,14 @@ public class SubstituicaoPagina {
         entradaParaSubstituir.setNumQuadro(-1);
         entradaParaSubstituir.setUso(false);
         entradaParaSubstituir.setModificacao(false);
+        entradaParaSubstituir.setPresenca(false);
 
         // Carrega nova página
         EntradaTP novaEntrada = tpDoSendoCarregado.getEntradas()[numPagina];
         novaEntrada.setNumQuadro(quadroLiberado);
         novaEntrada.setUso(true);
         novaEntrada.setModificacao(false); // assume não modificada
+        novaEntrada.setPresenca(true);
     }
 
 }

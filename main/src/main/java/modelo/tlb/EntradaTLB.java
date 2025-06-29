@@ -1,6 +1,6 @@
-package main.java.modelo.tlb;
+package modelo.tlb;
 
-import main.java.modelo.tabelaPaginas.EntradaTP;
+import modelo.tabelaPaginas.EntradaTP;
 
 public class EntradaTLB {
 	private boolean valid;	// quando houver uma troca de processo, o bit de validade deve ser setado para 1

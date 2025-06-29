@@ -1,4 +1,4 @@
-package main.java.visao;
+package visao;
 
 import java.awt.EventQueue;
 

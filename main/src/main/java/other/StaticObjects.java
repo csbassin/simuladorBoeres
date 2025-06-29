@@ -1,8 +1,8 @@
-package main.java.other;
+package other;
 
-import main.java.modelo.memoriaPrincipal.MemoriaPrincipal;
-import main.java.modelo.memoriaSecundaria.MemoriaSecundaria;
-import main.java.modelo.processo.ImagemProcesso;
+import modelo.memoriaPrincipal.MemoriaPrincipal;
+import modelo.memoriaSecundaria.MemoriaSecundaria;
+import modelo.processo.ImagemProcesso;
 import java.util.ArrayList;
 
 public class StaticObjects {

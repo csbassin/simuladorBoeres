@@ -1,11 +1,11 @@
-package main.java.other;
+package other;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import main.java.config.ConfigData;
+import config.ConfigData;
 
 public class Input {
 	//private ArrayList<String> instrucoes = new ArrayList<String>();

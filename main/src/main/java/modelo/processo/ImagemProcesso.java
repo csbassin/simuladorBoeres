@@ -1,9 +1,9 @@
-package main.java.modelo.processo;
+package modelo.processo;
 
 import java.util.ArrayList;
 
-import main.java.config.ConfigData;
-import main.java.modelo.tabelaPaginas.TabelaDePaginas;
+import config.ConfigData;
+import modelo.tabelaPaginas.TabelaDePaginas;
 
 public class ImagemProcesso {
     private String idProcesso;

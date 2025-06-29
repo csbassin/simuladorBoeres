@@ -1,4 +1,10 @@
-package main.java.modelo.tabelaPaginas;
+package modelo.tabelaPaginas;
+
+import modelo.memoriaPrincipal.MemoriaPrincipal;
+
+import java.util.ArrayList;
+
+import static other.StaticObjects.getMemoriaPrincipal;
 
 public class TabelaDePaginas {
     private int idProcesso;
@@ -6,8 +12,9 @@ public class TabelaDePaginas {
     
     public TabelaDePaginas(int quantidadePaginasProcesso) {
     	entradas = new EntradaTP[quantidadePaginasProcesso];
+
     	for(int i = 0; i<quantidadePaginasProcesso; i++) {
-    		entradas[i] = new EntradaTP(false, false, false, 0, 0, i);
+    		entradas[i] = new EntradaTP(false, false, false, 0, -1, i);
     	}
     }
 

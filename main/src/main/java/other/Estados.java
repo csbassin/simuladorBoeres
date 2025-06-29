@@ -1,4 +1,4 @@
-package main.java.other;
+package other;
 
 public enum Estados {
     NOVO("Novo"),

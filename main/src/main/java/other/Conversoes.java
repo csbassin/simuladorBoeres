@@ -1,10 +1,10 @@
-package main.java.other;
+package other;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import main.java.config.ConfigData;
-import main.java.modelo.Execucao.CPU;
-import main.java.modelo.processo.ImagemProcesso;
+import config.ConfigData;
+import modelo.Execucao.CPU;
+import modelo.processo.ImagemProcesso;
 
 
 public class Conversoes {
@@ -21,20 +21,4 @@ public class Conversoes {
         return valor * (long) Math.pow(2, 10*(indiceAtual - indiceDestino));
     }
 
-
-    //Endereço logico ->endereco fisico
-    public static long[] converterEnderecoLogicoFisico(long enderecoLogico, CPU cpu, ImagemProcesso processo) {
-
-        int qtdBitsOffset = (int) Math.ceil(Math.log(
-                Conversoes.convererterUnidade(ConfigData.quadroSize, "B", "b")
-        )/Math.log(2));
-        long numPag = enderecoLogico/qtdBitsOffset;
-        long offset = enderecoLogico % qtdBitsOffset;
-        int numQuadro = cpu.acessarEntradaPagina((int)numPag, processo).getNumQuadro();
-        long endFisico = numQuadro * (long) ConfigData.quadroSize + offset;
-
-        return new long[] {endFisico, numQuadro};
-
-
-    }
 }

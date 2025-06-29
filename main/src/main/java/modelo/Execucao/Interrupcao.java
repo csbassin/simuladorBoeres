@@ -1,4 +1,4 @@
-package main.java.modelo.Execucao;
+package modelo.Execucao;
 
 public class Interrupcao {
 	public static int DESBLOQUEAR = 0;
