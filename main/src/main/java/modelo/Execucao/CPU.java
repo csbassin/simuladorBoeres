@@ -5,6 +5,7 @@ import modelo.memoriaPrincipal.MemoriaPrincipal;
 import modelo.tabelaPaginas.EntradaTP;
 import modelo.tlb.TLB;
 import other.*;
+import visao.ViewTLB;
 import visao.ViewTabelaPaginas;
 
 import java.util.HashMap;
@@ -33,14 +34,6 @@ public class CPU extends Thread{
 	int processosCriados = 0;
 	int processosFinalizados = 0;
 	
-	//janelas que teremos que interagir
-	ViewTabelaPaginas viewTabelaPaginas;
-	//
-	
-	public CPU(ViewTabelaPaginas v) {
-		this.viewTabelaPaginas = v;
-		
-	}
 	
 	@Override
 	public void run() {
@@ -128,7 +121,7 @@ public class CPU extends Thread{
 			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setNumQuadro(quadroPagina);
 			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setPresenca(true);
 		}
-		viewTabelaPaginas.addToComboProcessos(processId);
+		StaticObjects.getVTP().addToComboProcessos(processId);
 		StaticObjects.getAllProcessos().add(imagemProcesso);
 		return imagemProcesso;
 	}

@@ -12,9 +12,19 @@ import javax.swing.JSeparator;
 import javax.swing.SpringLayout;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableModel;
+
+import modelo.processo.ImagemProcesso;
+import modelo.tabelaPaginas.EntradaTP;
+import other.StaticObjects;
+
 import javax.swing.JComboBox;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JButton;
+import javax.swing.border.LineBorder;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.awt.event.ActionEvent;
 
 public class ViewTabelaPaginas {
 	
@@ -24,7 +34,8 @@ public class ViewTabelaPaginas {
 	private JTable table;
 	private JScrollPane scrollPane;
 	private JComboBox<String> cmbProcesso;
-
+	private JButton btnAplicar;
+	DefaultTableModel dtm;
 	public ViewTabelaPaginas() {
 		initialize();
 
@@ -82,17 +93,60 @@ public class ViewTabelaPaginas {
 		scrollPane.setForeground(Color.DARK_GRAY);
 		frame.getContentPane().add(scrollPane);
 		
-		DefaultTableModel dtm = new DefaultTableModel(new String[0][6], TITLEARRAY);
+		dtm = new DefaultTableModel(new String[0][6], TITLEARRAY);
 		table = new JTable();
 		table.setModel(dtm);
 		scrollPane.setViewportView(table);
 		table.setBackground(Color.DARK_GRAY);
 		table.setForeground(Color.WHITE);
+		
+		btnAplicar = new JButton("Aplicar");
+		btnAplicar.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String idProcesso = cmbProcesso.getSelectedItem().toString();
+				boolean achou = false;
+				int i = 0;
+				ArrayList<ImagemProcesso> allProcessos = StaticObjects.getAllProcessos();
+				
+				while(!achou && i<allProcessos.size()) { // atualiza qual tabela de páginas será exibida
+					if(idProcesso.equals(allProcessos.get(i).getIdProcesso())) {
+						WindowData.tabelaDePaginasCurrentProcesso = allProcessos.get(i).getTabelaDePaginas();
+						achou = true;
+					}
+					i++;
+				}
+				
+			}
+		});
+		springLayout.putConstraint(SpringLayout.NORTH, btnAplicar, 6, SpringLayout.SOUTH, separator);
+		springLayout.putConstraint(SpringLayout.WEST, btnAplicar, 6, SpringLayout.EAST, cmbProcesso);
+		springLayout.putConstraint(SpringLayout.EAST, btnAplicar, 86, SpringLayout.EAST, cmbProcesso);
+		btnAplicar.setForeground(Color.WHITE);
+		btnAplicar.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+		btnAplicar.setContentAreaFilled(false);
+		btnAplicar.setBorder(new LineBorder(Color.WHITE, 2));
+		btnAplicar.setBackground(Color.DARK_GRAY);
+		frame.getContentPane().add(btnAplicar);
 		frame.setBounds(100, 100, 450, 680);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 	
 	public void addToComboProcessos(String processId) {
 		cmbProcesso.addItem(processId);
+	}
+	public void update() {
+		dtm.setRowCount(0);
+		for(EntradaTP entrada:WindowData.tabelaDePaginasCurrentProcesso.getEntradas()) {
+			String[] elementos = new String[6];
+			//{"Número da Página","Presente", "Modificada", "Utilizada", "Tempo do Último Uso", "Número do Quadro"};
+			elementos[0] = String.valueOf(entrada.getNumPagina());
+			elementos[1] = String.valueOf(entrada.getPresenca());
+			elementos[2] = String.valueOf(entrada.getModificacao());
+			elementos[3] = String.valueOf(entrada.getUso());
+			elementos[4] = String.valueOf(entrada.getTempoUltimoUso());
+			elementos[5] = String.valueOf(entrada.getNumQuadro());
+			dtm.addRow(elementos);
+		}
+		
 	}
 }

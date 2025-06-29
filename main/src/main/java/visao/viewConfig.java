@@ -1,6 +1,8 @@
 package visao;
 
 import config.ConfigData;
+import modelo.Execucao.CPU;
+import other.Input;
 
 import java.awt.EventQueue;
 
@@ -39,6 +41,7 @@ public class viewConfig {
 	private JTextField txtQuadroSize;
 	private JTextField txtQtdETLB;
 	private JTextField txtPath;
+	private JComboBox <String> cmbPolSubs;
 
 	public viewConfig() {
 		initialize();
@@ -75,27 +78,40 @@ public class viewConfig {
 		frame.getContentPane().add(separator);
 		
 		btnIniciar = new JButton("Iniciar");
+		btnIniciar.setContentAreaFilled(false);
 		btnIniciar.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
 					int qtdqmp = Integer.parseInt(txtQtdQMem.getText());
 					int tpsize = Integer.parseInt(txtQtdETLB.getText());
 					int quadroSize = Integer.parseInt(txtQuadroSize.getText());
+				
 					ConfigData.quantidadeQuadros = qtdqmp;
 					ConfigData.tpSize = tpsize;
 					ConfigData.quadroSize = quadroSize;
 					ConfigData.pathInput = txtPath.getText();
+					String subs = cmbPolSubs.getSelectedItem().toString();
+					if(subs.equalsIgnoreCase("LRU")) {
+						ConfigData.tipoSubstituicaoPaginas = subs;
+					}else {
+						ConfigData.tipoSubstituicaoPaginas = "CLOCK";
+					}
 				}catch(NumberFormatException e1) {
 					JOptionPane.showMessageDialog(null, "Digite o número corretamente. Apenas Inteiros são válidos.");
 				}
 				
+					new ViewTabelaPaginas();
+					new ViewTLB();
+					CPU cpu = new CPU();
+					cpu.run();
+					frame.dispose();
 			}
 						
 		});
-		btnIniciar.setBounds(369, 204, 91, 31);
+		btnIniciar.setBounds(369, 233, 91, 31);
 		btnIniciar.setBackground(Color.DARK_GRAY);
 		btnIniciar.setForeground(Color.WHITE);
-		btnIniciar.setBorder(new LineBorder(new Color(0, 0, 0)));
+		btnIniciar.setBorder(new LineBorder(Color.WHITE, 2));
 		btnIniciar.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 		frame.getContentPane().add(btnIniciar);
 		
@@ -147,8 +163,22 @@ public class viewConfig {
 		txtPath.setColumns(10);
 		frame.getContentPane().add(txtPath);
 		
+		JLabel lblPolticaDeSubstituio = new JLabel("Política de Substituição de Página:");
+		lblPolticaDeSubstituio.setForeground(Color.WHITE);
+		lblPolticaDeSubstituio.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+		lblPolticaDeSubstituio.setBounds(20, 185, 241, 22);
+		frame.getContentPane().add(lblPolticaDeSubstituio);
+		
+		cmbPolSubs = new JComboBox<>();
+		cmbPolSubs.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+		cmbPolSubs.setBounds(271, 183, 171, 24);
+		cmbPolSubs.addItem("LRU");
+		cmbPolSubs.addItem("Relógio de 2 bits");
+		frame.getContentPane().add(cmbPolSubs);
+		
+		
 		DefaultTableModel dtm = new DefaultTableModel(new String[0][7], TITLEARRAY);
-		frame.setBounds(100, 100, 486, 284);
+		frame.setBounds(100, 100, 486, 314);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 }
