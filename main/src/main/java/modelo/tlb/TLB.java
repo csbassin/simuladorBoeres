@@ -55,6 +55,14 @@ public class TLB {
 
     }
 
+    public boolean getModificacao(int numPagina){
+        for (EntradaTLB entrada: entradas) {
+            if (numPagina == entrada.getNumPagina())
+                return entrada.isModificacao();
+        }
+        return false;
+    }
+
     public void marcarModificacao(int numPagina) {
         for (EntradaTLB entrada: entradas) {
             if (numPagina == entrada.getNumPagina())

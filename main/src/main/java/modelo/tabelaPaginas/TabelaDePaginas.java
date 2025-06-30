@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import static other.StaticObjects.getMemoriaPrincipal;
 
 public class TabelaDePaginas {
-    private int idProcesso;
+    private String idProcesso;
     private EntradaTP[] entradas;
     
     public TabelaDePaginas(int quantidadePaginasProcesso) {
@@ -16,6 +16,14 @@ public class TabelaDePaginas {
     	for(int i = 0; i<quantidadePaginasProcesso; i++) {
     		entradas[i] = new EntradaTP(false, false, false, 0, -1, i);
     	}
+    }
+
+    public String getIdProcesso() {
+        return idProcesso;
+    }
+
+    public void setIdProcesso(String idProcesso) {
+        this.idProcesso = idProcesso;
     }
 
     public EntradaTP[] getEntradas() {

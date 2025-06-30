@@ -97,6 +97,7 @@ public class CPU extends Thread{
 	}
 	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
 		ImagemProcesso imagemProcesso = new ImagemProcesso();
+		imagemProcesso.setIdProcesso(processId);
 		imagemProcesso.getPcb().setEstado(String.valueOf(Estados.NOVO));
 		novos.enqueue(imagemProcesso.getIdProcesso());
 		//sleep algum tempo TODO
@@ -108,6 +109,7 @@ public class CPU extends Thread{
 		novos.remove(imagemProcesso.getIdProcesso());
 
 		TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
+		tp.setIdProcesso(processId);
 		imagemProcesso.setTabelaDePaginas(tp);
 		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo (novo->pronto suspenso direto? ou somenete novo)
 			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTOSUSPENSO));
@@ -163,8 +165,8 @@ public class CPU extends Thread{
 
 				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
 
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
-
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
+				endTraduzido.recalcularEndFisico();
 
 				//TODO pode ter um tempo de execução de intstrucao aqui
 
@@ -177,20 +179,28 @@ public class CPU extends Thread{
 				}
 				*/
 
-			} else if (Objects.equals(dados_instrucao.get("instrucao"), "R")) {
-//				ImagemProcesso processo = StaticObjects.getAllProcessos().stream()
-//						.filter(x -> x.getIdProcesso().equals(dados_instrucao.get("processo_id"))).findFirst().get();
-//
-//				long[] resultado = Conversoes.converterEnderecoLogicoFisico(Long.parseLong(dados_instrucao.get("valor")), this, processo);
-//				long endFisico = resultado[0];
-//				int numQuadro = (int) resultado[1];
+			} else if (Objects.equals(dados_instrucao.get("instrucao"), "I")) {
 				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
 
 				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
 				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
 				bloqueados.enqueue(processo.getIdProcesso());
 
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
+				endTraduzido.recalcularEndFisico();
+
+				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 3));
+
+
+			} else if (Objects.equals(dados_instrucao.get("instrucao"), "R")) {
+				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+
+				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
+				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
+				bloqueados.enqueue(processo.getIdProcesso());
+
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
+				endTraduzido.recalcularEndFisico();
 
 				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 0));
 
@@ -202,8 +212,8 @@ public class CPU extends Thread{
 
 				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
 				bloqueados.enqueue(processo.getIdProcesso());
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo);
-				processo.getTabelaDePaginas().getEntradaPagina((int) endTraduzido.getNumeroPagina()).setModificacao(true);
+				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, true);
+				endTraduzido.recalcularEndFisico();
 
 				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 1));
 
@@ -211,6 +221,8 @@ public class CPU extends Thread{
 				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
 				processo.getPcb().setEstado(String.valueOf(Estados.PRONTO));
 				finalizados.enqueue(processo.getIdProcesso());
+				processo.setTabelaDePaginas(null);
+
 
 			}
 			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
@@ -225,9 +237,14 @@ public class CPU extends Thread{
 			this.interrupcoes.enqueue(interrupcao);
 		}
 
-	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo) throws InterruptedException {
+	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo, boolean modificacao) throws InterruptedException {
 		boolean consultaTLB = tlb.consulta(numPagina);
 		EntradaTP resultado = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
+		if (modificacao && !tlb.getModificacao(numPagina))
+			tlb.marcarModificacao(numPagina);
+		if (modificacao && !resultado.getModificacao())
+			resultado.setModificacao(true);
+
 
 		Thread.sleep((long) ConfigData.tempoAcessoTLB*1000);//sleep tempoTLB
 		if (consultaTLB){ //TLB HIT
@@ -240,15 +257,31 @@ public class CPU extends Thread{
 		boolean consultaTP = processo.getTabelaDePaginas().consulta(numPagina);
 		if (consultaTP){ //TP HIT
 			Thread.sleep((long) ConfigData.tempoAcessoMP*1000);//sleep tempoMP
+			tlb.adicionarEntrada(resultado);
 			return resultado;
 		}
 		//TP MISS
 		Thread.sleep((long) ConfigData.tempoAcessoMS*1000);//sleep tempoMP
 
-		if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "LRU"))
-			substPagina.substituirComLRU(numPagina, processo.getIdProcesso());
-		else if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "CLOCK")) {
-			substPagina.substituirComClockTwoDigits(numPagina, processo.getIdProcesso());
+		MemoriaPrincipal mp = StaticObjects.getMemoriaPrincipal();
+		if (!mp.getQuadrosLivres().isEmpty()) {
+			Integer quadroLivre = mp.getQuadrosLivres().getFirst();
+			mp.ocupar(quadroLivre);
+
+			// Atualiza a entrada da tabela de páginas do processo
+			resultado.setNumQuadro(quadroLivre);
+			resultado.setPresenca(true);
+			resultado.setUso(true);
+			resultado.setModificacao(modificacao); // Define o bit de modificação conforme a instrução (R/W)
+			// O tempo do último uso (para LRU) deve ser atualizado aqui também, se aplicável
+
+		} else {
+			//Lógica original de substituição
+			if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "LRU"))
+				substPagina.substituirComLRU(numPagina, processo.getIdProcesso());
+			else if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "CLOCK")) {
+				substPagina.substituirComClockTwoDigits(numPagina, processo.getIdProcesso());
+			}
 		}
 
 		tlb.adicionarEntrada(resultado);
@@ -256,7 +289,7 @@ public class CPU extends Thread{
 	}
 	public ImagemProcesso buscarProcessoPorID(String ID){
 		return StaticObjects.getAllProcessos().stream()
-				.filter(x -> x.getIdProcesso().equals(ID)).findFirst().get();
+				.filter(x -> x.getIdProcesso().equals(ID.substring(1))).findFirst().get();
 	}
 
 

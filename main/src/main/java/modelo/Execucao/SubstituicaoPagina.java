@@ -18,18 +18,21 @@ public class SubstituicaoPagina {
         String idProcessoDoASubstituir = null;
         EntradaTP entradaDoASubstituir = null;
         int numPaginaDoASubstituir = -1;
-        int maiorTempoUso = -1;
+        long menorTempoUso = Long.MAX_VALUE;
 
         for(ImagemProcesso processo:imagens){
             if(idProcesso.equals(processo.getIdProcesso())){ // se pid = pid recebido, a tabela é do processo que vai ser carregado
                 tpDoSendoCarregado = processo.getTabelaDePaginas();
             }
-            // não pulo o loop porque posso substituir do meu processo também
-            for(EntradaTP entrada:processo.getTabelaDePaginas().getEntradas() ){ // para cada entrada da tabela de páginas do processo atual
-                if(maiorTempoUso < entrada.getTempoUltimoUso() && entrada.getNumQuadro() > -1){ // maior que -1 porque -1 indica que não está em MP
-                    maiorTempoUso = entrada.getTempoUltimoUso();
+
+            EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
+            for(int i = 0; i < entradas.length; i++) {
+                EntradaTP entrada = entradas[i];
+                if(entrada.getTempoUltimoUso() < menorTempoUso && entrada.getNumQuadro() > -1){
+                    menorTempoUso = entrada.getTempoUltimoUso();
                     entradaDoASubstituir = entrada;
                     idProcessoDoASubstituir = processo.getIdProcesso();
+                    numPaginaDoASubstituir = i; // LINHA DA CORREÇÃO
                 }
             }
             // verificar o bit de modificação na entrada que será alterada

@@ -6,21 +6,24 @@ import modelo.processo.ImagemProcesso;
 
 public class EnderecoTraduzido {
 
-    private final long enderecoFisico;
-    private final long numeroPagina;
-    private final int numeroQuadro;
-    private final long offset;
+    private long enderecoFisico;
+    private long numeroPagina;
+    private int numeroQuadro;
+    private long offset;
+    private ImagemProcesso processo;
 
-    public EnderecoTraduzido(long enderecoLogico, ImagemProcesso processo) throws InterruptedException {
+    public EnderecoTraduzido(long enderecoLogico, ImagemProcesso processo) {
+        this.processo = processo;
 
-
-        long qntdBitsOffset = (int) Math.ceil(Math.log(
-                Conversoes.convererterUnidade(ConfigData.quadroSize, "B", "b")
-        )/Math.log(2));
-        this.numeroPagina = enderecoLogico / qntdBitsOffset;
-        this.offset = enderecoLogico % qntdBitsOffset;
+        this.numeroPagina = enderecoLogico / ConfigData.quadroSize;
+        this.offset = enderecoLogico % ConfigData.quadroSize;
         this.numeroQuadro = processo.getTabelaDePaginas().getNumQuadro((int) this.numeroPagina);
-        this.enderecoFisico = (long) this.numeroQuadro * qntdBitsOffset + this.offset;
+        this.enderecoFisico = (long) this.numeroQuadro * ConfigData.quadroSize + this.offset;
+    }
+
+    public void recalcularEndFisico(){
+        this.numeroQuadro = processo.getTabelaDePaginas().getNumQuadro((int) this.numeroPagina);
+        this.enderecoFisico = (long) this.numeroQuadro * ConfigData.quadroSize + this.offset;
     }
 
     public long getEnderecoFisico() {
