@@ -3,25 +3,19 @@ package other;
 import modelo.memoriaPrincipal.MemoriaPrincipal;
 import modelo.memoriaSecundaria.MemoriaSecundaria;
 import modelo.processo.ImagemProcesso;
-import visao.ViewTLB;
 import visao.ViewTabelaPaginas;
+import visao.ViewTLB;
+import visao.WindowData;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 public class StaticObjects {
 	private static MemoriaPrincipal mp = null;
-	private static ArrayList<ImagemProcesso> allProcessos = new ArrayList<>();
+	private static final ArrayList<ImagemProcesso> allProcessos = new ArrayList<>();
 	private static MemoriaSecundaria memoriaSecundaria = null;
-	private static ViewTabelaPaginas vtp = null;
-	private static ViewTLB vtlb = null;
 
-	
-	public static ViewTabelaPaginas getVTP() {
-		return vtp;
-	}
-	public static ViewTLB getVTLB() {
-		return vtlb;
-	}
+
 	public static ArrayList<ImagemProcesso> getAllProcessos(){
 		return allProcessos;
 	}
@@ -36,5 +30,17 @@ public class StaticObjects {
 			memoriaSecundaria = new MemoriaSecundaria();
 		}
 		return memoriaSecundaria;
+	}
+
+	public static Optional<ImagemProcesso> findProcessById(String id) {
+		if (id == null) {
+			return Optional.empty();
+		}
+		for (ImagemProcesso processo : allProcessos) {
+			if (id.equals(processo.getIdProcesso())) {
+				return Optional.of(processo);
+			}
+		}
+		return Optional.empty();
 	}
 }

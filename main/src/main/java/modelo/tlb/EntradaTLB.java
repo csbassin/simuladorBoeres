@@ -3,11 +3,10 @@ package modelo.tlb;
 import modelo.tabelaPaginas.EntradaTP;
 
 public class EntradaTLB {
-	private boolean valid;	// quando houver uma troca de processo, o bit de validade deve ser setado para 1
+	private boolean valid;
     private int numPagina;
 
-    //Usaremos LRU, em que o tempo de ultimo uso é um contador
-    private int tempoUltimoUso; // essa tem relação com a política de susbtituição da TLB, e não da tabela de páginas
+    private int tempoUltimoUso;
     private EntradaTP entradaTP;
 
     private boolean modificacao;

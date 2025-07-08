@@ -5,294 +5,378 @@ import modelo.memoriaPrincipal.MemoriaPrincipal;
 import modelo.tabelaPaginas.EntradaTP;
 import modelo.tlb.TLB;
 import other.*;
-import visao.ViewTLB;
-import visao.ViewTabelaPaginas;
+import visao.WindowData;
 
-import java.util.HashMap;
-import java.util.Objects;
+import javax.swing.*;
+import java.util.Optional;
 
 import modelo.tabelaPaginas.TabelaDePaginas;
-
 import modelo.processo.ImagemProcesso;
 
-public class CPU extends Thread{
-	
-	private MemoriaPrincipal memoriaPrincipal = null;
-	private Input input = null;
-	private int numInstAtual = 0; // usada apenas para parar a simulação quando acabarem as instruções. Devemos incrementar individualmente o ponteiro em cada processo
-	TLB tlb = new TLB(ConfigData.qntdPagTlB);
-	Fila<String> prontos = new Fila<>();
-	Fila<String> bloqueados = new Fila<>();
-	Fila<String> novos = new Fila<>();
-	Fila<String> bloqueadosSuspensos = new Fila<>();
-	Fila<String> prontosSuspensos = new Fila<>();
-	Fila<String> finalizados = new Fila<>();
-	private Fila<Interrupcao> interrupcoes = new Fila<>();
-	private SubstituicaoPagina substPagina = new SubstituicaoPagina();
-	
-	String executando;
-	int processosCriados = 0;
-	int processosFinalizados = 0;
-	
-	
+public class CPU extends Thread {
+
+	//partes principais
+	private MemoriaPrincipal memoriaPrincipal;
+	private Input input;
+	private int numInstAtual = 0;
+	public final TLB tlb = new TLB(ConfigData.qntdPagTlB);
+	private final SubstituicaoPagina substPagina = new SubstituicaoPagina(this);
+
+	// Filas para gerenciar o estado dos processos
+	public final Fila<String> prontos = new Fila<>();
+	public final Fila<String> bloqueados = new Fila<>();
+	public final Fila<String> finalizados = new Fila<>();
+	public final Fila<String> prontosSuspensos = new Fila<>();
+
+	// Fila para interrupções do sistema
+	private final Fila<Interrupcao> interrupcoes = new Fila<>();
+	private String processoNaCPU;
+
+
+	private boolean aguardandoIO = false;
+	private String processoEmIO = null;
+
+
 	@Override
 	public void run() {
-		/* etapas do algoritimo:
-		 	1- ler a instrução. Os dois primeiros representam qual o processo. O primeiro depois do espaço é o tipo de instrução
-		 		P: instução de CPU (marca a página do endereço como modificada);
-		 		I: instrução de IO (deve bloquear o processo atual)
-		 		C: cria um processo
-		 		R/W: Leitura/Escrita na memória principal (R altera bit de uso e W altera bit de modificação)
-		 		T: Terminação de processo
-		 */
-		
 		memoriaPrincipal = StaticObjects.getMemoriaPrincipal();
+		StaticObjects.getMemoriaSecundaria().start();
+
 		try {
 			input = new Input();
 		} catch (Exception e) {
 			e.printStackTrace();
+			return;
 		}
-		
-		
-		// enquanto houver instruções para executar
-		while(input.getInstrucoesPendentes()>0) {
-			while(!interrupcoes.isEmpty()) {
-				Interrupcao interrupt = interrupcoes.unqueue();
-				if(interrupt.getTipoInterrupcao() == Interrupcao.DESBLOQUEAR) {
-					bloqueados.remove(interrupt.getIdProcesso());
-					prontos.enqueue(interrupt.getIdProcesso());
+
+		// Loop principal
+		while (numInstAtual < input.getInstrucoes().size()) {
+			try {
+				WindowData.tempoLogico++;
+				if (WindowData.stepByStepMode) {
+					WindowData.stepSemaphore.acquire();
+				} else {
+					Thread.sleep(ConfigData.cicloCPU);
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+
+			tratarInterrupcoes();
+
+			//se CPU estava esperando por I/O passa um ciclo
+			if (aguardandoIO) {
+				System.out.println("[OS] Operação de I/O concluída para o processo " + processoEmIO + ". Gerando interrupção de desbloqueio.");
+				addFilaInterrupcoes(new Interrupcao(processoEmIO, Interrupcao.DESBLOQUEAR));
+				aguardandoIO = false;
+				processoEmIO = null;
+				// O continue pula o resto do loop, incluindo o incremento da instrução.
+
+				continue;
+			}
+
+			String instrucao = input.getInstrucoes().get(numInstAtual);
+			WindowData.currentInstructionText = instrucao;
+			String idProcessoDaInstrucao = instrucao.split(" ")[0];
+
+			//caso de um processo que estava suspenso e precisa ser carregado na memória
+			if (prontosSuspensos.contains(idProcessoDaInstrucao)) {
+				System.out.println("[OS] Processo " + idProcessoDaInstrucao + " requisitado, iniciando operação de swap-in.");
+				Optional<ImagemProcesso> processoOpt = StaticObjects.findProcessById(idProcessoDaInstrucao);
+				if (processoOpt.isPresent()) {
+					garantirPaginaNaMemoria(processoOpt.get(), 0, true);
+					prontosSuspensos.remove(idProcessoDaInstrucao);
+					prontos.enqueue(idProcessoDaInstrucao);
+					processoOpt.get().getPcb().setEstado(Estados.PRONTO);
+					System.out.println("[OS] Processo " + idProcessoDaInstrucao + " movido para a fila de Prontos.");
 				}
 			}
-			String instrucao = input.getInstrucoes().get(numInstAtual);
-			if(bloqueados.isEmpty() && bloqueadosSuspensos.isEmpty() && prontosSuspensos.isEmpty()) { // se não houver nenhuma restrição
-				try {
-					executaComando(instrucao);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}else {
-				String processoId = instrucao.substring(0, instrucao.indexOf(' '));
-				if(bloqueadosSuspensos.contains(processoId) || bloqueados.contains(processoId) || prontosSuspensos.contains(processoId)) {
-					if(!(prontos.isEmpty())) {
-						selecionarOutroParaExecucao();
-					}
-				}else {
-					try {
-					executaComando(instrucao);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}			
-		}
-		
-		
-		
-		
-	}
-	private TabelaDePaginas criaTabelaDePaginas(String processId, int quantidadePaginasProcesso) {
-		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
 
-		return tp;
+			// Se a instrução atual pertence a um processo que está bloqueado, a CPU fica ociosa (para não implementarmos um escalonador)
+			if (bloqueados.contains(idProcessoDaInstrucao)) {
+				WindowData.currentInstructionText = "(Aguardando desbloqueio de " + idProcessoDaInstrucao + "...)";
+				System.out.println("CPU ociosa. Aguardando desbloqueio de processo...");
+
+				continue;
+			}
+
+			executaComando(instrucao);
+
+			numInstAtual++;
+		}
+
+		// acaba a simulação
+		if (WindowData.btnNextStep != null) {
+			SwingUtilities.invokeLater(() -> WindowData.btnNextStep.setEnabled(false));
+		}
+
+		WindowData.acabou = true;
+		StaticObjects.getMemoriaSecundaria().interrupt();
+		WindowData.currentInstructionText = "(simulação finalizada)";
+		System.out.println("Simulação finalizada. Todos os processos foram terminados.");
 	}
-	private ImagemProcesso criaProcesso(String processId, int tamanhoProcessoBytes) {
+
+	// ldiar com a fila de interrupções
+	private void tratarInterrupcoes() {
+		while (!interrupcoes.isEmpty()) {
+			Interrupcao interrupt = interrupcoes.unqueue();
+			if (interrupt.getTipoInterrupcao() == Interrupcao.DESBLOQUEAR) {
+				String idProcesso = interrupt.getIdProcesso();
+				if (bloqueados.remove(idProcesso)) {
+					prontos.enqueue(idProcesso);
+					StaticObjects.findProcessById(idProcesso).ifPresent(p -> p.getPcb().setEstado(Estados.PRONTO));
+					System.out.println("INTERRUPÇÃO: Processo " + idProcesso + " foi desbloqueado e movido para a fila de Prontos.");
+				}
+			}
+		}
+	}
+
+	private void criaProcesso(String processId, int tamanhoProcessoBytes) {
+		if (StaticObjects.findProcessById(processId).isPresent()) {
+			System.err.println("Processo " + processId + " já existe.");
+			return;
+		}
+
 		ImagemProcesso imagemProcesso = new ImagemProcesso();
 		imagemProcesso.setIdProcesso(processId);
-		imagemProcesso.getPcb().setEstado(String.valueOf(Estados.NOVO));
-		novos.enqueue(imagemProcesso.getIdProcesso());
-		//sleep algum tempo TODO
 
+		int quantidadePaginasProcesso = (int) Math.ceil((double) tamanhoProcessoBytes / ConfigData.quadroSize);
+		if (quantidadePaginasProcesso == 0) quantidadePaginasProcesso = 1;
 
-		int quadrosLivres = memoriaPrincipal.getQuadrosLivres().size();
-		int quantidadeQuadrosProcesso = (int) Math.ceil(tamanhoProcessoBytes/ ConfigData.quadroSize);
-
-		novos.remove(imagemProcesso.getIdProcesso());
-
-		TabelaDePaginas tp = criaTabelaDePaginas(processId, quantidadeQuadrosProcesso);
+		TabelaDePaginas tp = new TabelaDePaginas(quantidadePaginasProcesso);
 		tp.setIdProcesso(processId);
 		imagemProcesso.setTabelaDePaginas(tp);
-		if(quadrosLivres == 0) { // não tem espaço para alocar ao menos uma página do processo (novo->pronto suspenso direto? ou somenete novo)
-			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTOSUSPENSO));
-			prontosSuspensos.enqueue(imagemProcesso.getIdProcesso());
-			return imagemProcesso;
-		}else { // tem espaço para alocar pelo menos uma página do processo
-			Integer quadroPagina = memoriaPrincipal.getQuadrosLivres().getFirst();
-			memoriaPrincipal.ocupar(quadroPagina);
-			imagemProcesso.getPcb().setEstado(String.valueOf(Estados.PRONTO));
-			prontos.enqueue(imagemProcesso.getIdProcesso());
-			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setNumQuadro(quadroPagina);
-			imagemProcesso.getTabelaDePaginas().getEntradaPagina(0).setPresenca(true);
-		}
-		StaticObjects.getVTP().addToComboProcessos(processId);
+
 		StaticObjects.getAllProcessos().add(imagemProcesso);
-		return imagemProcesso;
+		if(WindowData.vtp != null) WindowData.vtp.addToComboProcessos(processId);
+
+		// Tenta alocar um quadro livre na memória principal
+		Integer quadroAlocado = memoriaPrincipal.alocarQuadroLivre();
+		if (quadroAlocado != null) {
+			// Se tivere espaço, o processo é colocado na fila de prontos
+			System.out.println("[OS] Alocando processo " + processId + " na memória principal (Quadro " + quadroAlocado + ").");
+			EntradaTP paginaZero = imagemProcesso.getTabelaDePaginas().getEntradaPagina(0);
+			paginaZero.setNumQuadro(quadroAlocado);
+			paginaZero.setPresenca(true);
+			paginaZero.setUso(true);
+			paginaZero.setTempoUltimoUso(WindowData.tempoLogico);
+
+			prontos.enqueue(imagemProcesso.getIdProcesso());
+			imagemProcesso.getPcb().setEstado(Estados.PRONTO);
+			System.out.println("Processo " + processId + " criado com " + quantidadePaginasProcesso + " páginas e movido para Prontos.");
+		} else {
+			// Senão, o processo vai para a fila de prontos-suspensos.
+			prontosSuspensos.enqueue(imagemProcesso.getIdProcesso());
+			imagemProcesso.getPcb().setEstado(Estados.PRONTOSUSPENSO);
+			System.out.println("Memória principal cheia. Processo " + processId + " criado com " + quantidadePaginasProcesso + " páginas e movido para Pronto-Suspenso.");
+		}
 	}
 
-	private void executaComando(String instrucao) throws InterruptedException {
-//		Não implementarei preempção porque precisaríamos fazer um escalonador pra isso
-//		 Funcionamento: Mantenho um inteiro em cada processo indicando qual o número da instrução atual.
-//		 Mantenho a ordem de qual processo deve vir primeiro na entrada, para podermos manter o momento da submissão
+	private void garantirPaginaNaMemoria(ImagemProcesso processo, int numPagina, boolean isSwapIn) {
+		EntradaTP pagina = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
 
-			HashMap<String, String> dados_instrucao = new HashMap<String, String>();
-			String[] chaves = {"processo_id", "instrucao", "valor", "unidade"};
-			String[] strings_sep = instrucao.split(" ");
+		if(pagina.getPresenca()){
+			return;
+		}
 
-			for (int i =0; i < strings_sep.length; i++) {
-				dados_instrucao.put(chaves[i], strings_sep[i]);
+		if(isSwapIn) { //isso é pra permitir que ele execute a insturção
+			System.out.println("\n[OS] Swap-in forçado para Processo: " + processo.getIdProcesso() + ", Página: " + numPagina);
+		}
+
+		Integer quadroAlocado = memoriaPrincipal.alocarQuadroLivre();
+		if (quadroAlocado != null) {
+			System.out.println("Quadro livre " + quadroAlocado + " alocado para a página " + numPagina);
+			pagina.setNumQuadro(quadroAlocado);
+		} else {
+			//não tem quadros livres -> algoritmo de substituição de página
+			System.out.println("Não há quadros livres. Iniciando algoritmo de substituição de página (" + ConfigData.tipoSubstituicaoPaginas + ")...");
+			if ("LRU".equals(ConfigData.tipoSubstituicaoPaginas)) {
+				substPagina.substituirComLRU(numPagina, processo);
+			} else {
+				substPagina.substituirComClock(numPagina, processo);
 			}
+		}
 
+		pagina.setPresenca(true);
+		pagina.setUso(true);
+		pagina.setTempoUltimoUso(WindowData.tempoLogico);
+		tlb.adicionarEntrada(pagina, processo.getIdProcesso());
+	}
 
-			if(Objects.equals(dados_instrucao.get("instrucao"), "C")) { // criação do processo
+	private void executaComando(String instrucao) {
+		String[] partes = instrucao.split(" ");
+		String processoId = partes[0];
+		String comando = partes[1];
 
+		Optional<ImagemProcesso> processoSelecionado = StaticObjects.findProcessById(processoId);
 
-				ImagemProcesso processo = criaProcesso(dados_instrucao.get("processo_id").substring(1),
-                        (int) Conversoes.convererterUnidade(Long.parseLong(dados_instrucao.get("valor")),
-								dados_instrucao.get("unidade"), "B"));
-//				 	Criaremos uma instância de processo e colocaremos seu estado como novo
+		// troca de contexto se a instrução for de um processo diferente do que tá na CPU
+		if (processoSelecionado.isEmpty() && !comando.equals("C")) {
+			System.err.println("Processo " + processoId + " não encontrado para a instrução: " + instrucao);
+			return;
+		}
 
-//				 	varre o arrayList de quadros livres.
-//
-//				 	Se houver uma quantidade contígua suficiente de quadros livres para colocar a tabela de páginas, aloca a tabela de páginas nesses quadros e cria o ponteiro
-//				 	Se não houver, não pode criar o processo
-//				 	Passaremos a ignorar tudo desse processo no arquivo de entrada (porque o processo não foi criado)
-//
-//				 	Se houver, alocamos esse quadro para a página. Seu estado passa para "Pronto"
-//				 	Se não houver, o processo permanece com o estado novo e é colocado em uma fila para alocação futura
+		if (!comando.equals("C") && processoNaCPU != null && !processoId.equals(processoNaCPU)) {
+			tlb.trocaDeProcesso(processoId);
+			System.out.println("\nTroca de contexto -> TLB invalidada. Novo processo na CPU: " + processoId);
+		}
+		processoNaCPU = processoId;
 
-			}
-			else if(Objects.equals(dados_instrucao.get("instrucao"), "P")) { // execuçãp de instrução
-				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+		ImagemProcesso processo = processoSelecionado.orElse(null);
 
-				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
+		if(processo != null && processo.getPcb().getEstado() != Estados.FINALIZADO) {
+			processo.getPcb().setEstado(Estados.EXECUTANDO);
+		}
 
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
-				endTraduzido.recalcularEndFisico();
+		switch (comando) {
+			case "C":
+				int tamanhoProcesso = Integer.parseInt(partes[2]);
+				if (partes.length > 3) {
+					String unidade = partes[3];
+					tamanhoProcesso = (int) Conversoes.convererterUnidade(tamanhoProcesso, unidade, "B");
+				}
+				criaProcesso(processoId, tamanhoProcesso);
+				break;
 
-				//TODO pode ter um tempo de execução de intstrucao aqui
+			case "R":
+			case "P":
+				acessarEndereco(Long.parseLong(partes[2]), processo, false);
+				break;
 
-				/*
-				boolean quadroTaNaMP = false; //talvez um erro ou um print
-				for (int nQuadroLivre: memoriaPrincipal.getQuadrosOcupados()){
-					if (numQuadro == nQuadroLivre) {
-						quadroTaNaMP = true;
+			case "W":
+				acessarEndereco(Long.parseLong(partes[2]), processo, true);
+				break;
+
+			case "I":
+				System.out.println("[OS] Processo " + processo.getIdProcesso() + " iniciou uma operação de I/O. Movendo para Bloqueados.");
+				processo.getPcb().setEstado(Estados.BLOQUEADO);
+				prontos.remove(processo.getIdProcesso());
+				bloqueados.enqueue(processo.getIdProcesso());
+
+				this.aguardandoIO = true;
+				this.processoEmIO = processo.getIdProcesso();
+				WindowData.currentInstructionText = "(Aguardando I/O do Processo " + processoEmIO + "...)";
+				break;
+
+			case "T":
+
+				// Só finaliza o processo se ele ainda não estiver finalizado.
+				if (processo != null && processo.getPcb().getEstado() != Estados.FINALIZADO) {
+					System.out.println("Processo " + processo.getIdProcesso() + " terminando.");
+					for (EntradaTP entrada : processo.getTabelaDePaginas().getEntradas()) {
+						if (entrada.getPresenca()) {
+							if (entrada.getModificacao()) {
+								StaticObjects.getMemoriaSecundaria().gravar(processo.getIdProcesso(), entrada.getNumPagina());
+							}
+							StaticObjects.getMemoriaPrincipal().liberar(entrada.getNumQuadro());
+							tlb.invalidarEntrada(entrada.getNumPagina(), processo.getIdProcesso());
+						}
+					}
+					prontos.remove(processo.getIdProcesso());
+					bloqueados.remove(processo.getIdProcesso());
+					prontosSuspensos.remove(processo.getIdProcesso());
+
+					finalizados.enqueue(processo.getIdProcesso());
+					processo.getPcb().setEstado(Estados.FINALIZADO);
+					if(processoId.equals(processoNaCPU)) {
+						processoNaCPU = null;
 					}
 				}
-				*/
 
-			} else if (Objects.equals(dados_instrucao.get("instrucao"), "I")) {
-				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+				break;
+		}
 
-				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
-				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
-				bloqueados.enqueue(processo.getIdProcesso());
+		if (processo != null && (processo.getPcb().getEstado() == Estados.EXECUTANDO)) {
+			processo.getPcb().setEstado(Estados.PRONTO);
+		}
+	}
 
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
-				endTraduzido.recalcularEndFisico();
+	public EntradaTP acessarEndereco(long enderecoLogico, ImagemProcesso processo, boolean modificacao) {
+		if (processo == null) return null;
 
-				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 3));
+		int numPagina = (int) (enderecoLogico / ConfigData.quadroSize);
 
+		// Verifica se o acesso é a uma página válida do processo
+		if (numPagina >= processo.getTabelaDePaginas().getEntradas().length) {
+			System.err.println("!!! ERRO: Processo " + processo.getIdProcesso() + " tentou acessar página inválida ("+numPagina+"). SEGMENTATION FAULT.");
 
-			} else if (Objects.equals(dados_instrucao.get("instrucao"), "R")) {
-				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
+			prontos.remove(processo.getIdProcesso());
+			bloqueados.remove(processo.getIdProcesso());
+			prontosSuspensos.remove(processo.getIdProcesso());
 
-				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
-				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
-				bloqueados.enqueue(processo.getIdProcesso());
-
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, false);
-				endTraduzido.recalcularEndFisico();
-
-				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 0));
-
-
-			} else if (Objects.equals(dados_instrucao.get("instrucao"), "W")) {
-				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
-
-				EnderecoTraduzido endTraduzido = new EnderecoTraduzido(Long.parseLong(dados_instrucao.get("valor")), processo);
-
-				processo.getPcb().setEstado(String.valueOf(Estados.BLOQUEADO));
-				bloqueados.enqueue(processo.getIdProcesso());
-				acessarEntradaPagina((int) endTraduzido.getNumeroPagina(), processo, true);
-				endTraduzido.recalcularEndFisico();
-
-				interrupcoes.enqueue(new Interrupcao(dados_instrucao.get("processo_id"), 1));
-
-			} else if (Objects.equals(dados_instrucao.get("instrucao"), "T")) {
-				ImagemProcesso processo = buscarProcessoPorID(dados_instrucao.get("processo_id"));
-				processo.getPcb().setEstado(String.valueOf(Estados.PRONTO));
+			// Adiciona à fila de finalizados apenas se já não estiver lá
+			if(!finalizados.contains(processo.getIdProcesso())) {
 				finalizados.enqueue(processo.getIdProcesso());
-				processo.setTabelaDePaginas(null);
-
-
 			}
-			input.setInstrucoesPendentes(input.getInstrucoesPendentes()-1);
-			numInstAtual ++;
+			processo.getPcb().setEstado(Estados.FINALIZADO);
+
+			for (EntradaTP entrada : processo.getTabelaDePaginas().getEntradas()) {
+				if (entrada.getPresenca()) {
+					StaticObjects.getMemoriaPrincipal().liberar(entrada.getNumQuadro());
+					tlb.invalidarEntrada(entrada.getNumPagina(), processo.getIdProcesso());
+				}
+			}
+
+			if(processo.getIdProcesso().equals(processoNaCPU)) {
+				processoNaCPU = null;
+			}
+			return null;
 		}
 
-
-		private void selecionarOutroParaExecucao() {
-			executando = prontos.unqueue();
+		// Primeiro tentatamos encontrar a página na TLB
+		Optional<EntradaTP> tlbResult = tlb.consulta(numPagina, processo.getIdProcesso());
+		if (tlbResult.isPresent()) {
+			System.out.println("TLB HIT! Processo: " + processo.getIdProcesso() + ", Página: " + numPagina);
+			EntradaTP entrada = tlbResult.get();
+			entrada.setUso(true);
+			entrada.setTempoUltimoUso(WindowData.tempoLogico);
+			if (modificacao) {
+				entrada.setModificacao(true);
+			}
+			return entrada;
 		}
-		public void addFilaInterrupcoes(Interrupcao interrupcao) {
-			this.interrupcoes.enqueue(interrupcao);
+
+		System.out.println("TLB MISS. Consultando Tabela de Páginas... Processo: " + processo.getIdProcesso() + ", Página: " + numPagina);
+		EntradaTP entradaTP = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
+		if (entradaTP.getPresenca()) {
+			System.out.println("PAGE TABLE HIT! Página " + numPagina + " está no quadro " + entradaTP.getNumQuadro());
+			entradaTP.setUso(true);
+			entradaTP.setTempoUltimoUso(WindowData.tempoLogico);
+			if (modificacao) {
+				entradaTP.setModificacao(true);
+			}
+			tlb.adicionarEntrada(entradaTP, processo.getIdProcesso());
+			return entradaTP;
 		}
 
-	public EntradaTP acessarEntradaPagina(int numPagina, ImagemProcesso processo, boolean modificacao) throws InterruptedException {
-		boolean consultaTLB = tlb.consulta(numPagina);
-		EntradaTP resultado = processo.getTabelaDePaginas().getEntradaPagina(numPagina);
-		if (modificacao && !tlb.getModificacao(numPagina))
-			tlb.marcarModificacao(numPagina);
-		if (modificacao && !resultado.getModificacao())
-			resultado.setModificacao(true);
+		//page fault se pagina não esta na memoria
+		System.out.println("!!! PAGE FAULT! Processo: " + processo.getIdProcesso() + ", Página: " + numPagina);
+		WindowData.ocorreuPageFault();
 
-
-		Thread.sleep((long) ConfigData.tempoAcessoTLB*1000);//sleep tempoTLB
-		if (consultaTLB){ //TLB HIT
-			return resultado;
-		}
-		//TLB MISS
-		Thread.sleep((long) ConfigData.tempoAcessoMP*1000);//sleep tempoMP
-
-
-		boolean consultaTP = processo.getTabelaDePaginas().consulta(numPagina);
-		if (consultaTP){ //TP HIT
-			Thread.sleep((long) ConfigData.tempoAcessoMP*1000);//sleep tempoMP
-			tlb.adicionarEntrada(resultado);
-			return resultado;
-		}
-		//TP MISS
-		Thread.sleep((long) ConfigData.tempoAcessoMS*1000);//sleep tempoMP
-
-		MemoriaPrincipal mp = StaticObjects.getMemoriaPrincipal();
-		if (!mp.getQuadrosLivres().isEmpty()) {
-			Integer quadroLivre = mp.getQuadrosLivres().getFirst();
-			mp.ocupar(quadroLivre);
-
-			// Atualiza a entrada da tabela de páginas do processo
-			resultado.setNumQuadro(quadroLivre);
-			resultado.setPresenca(true);
-			resultado.setUso(true);
-			resultado.setModificacao(modificacao); // Define o bit de modificação conforme a instrução (R/W)
-			// O tempo do último uso (para LRU) deve ser atualizado aqui também, se aplicável
-
+		Integer quadroAlocado = memoriaPrincipal.alocarQuadroLivre();
+		if (quadroAlocado != null) {
+			System.out.println("Quadro livre " + quadroAlocado + " alocado para a página " + numPagina);
+			entradaTP.setNumQuadro(quadroAlocado);
 		} else {
-			//Lógica original de substituição
-			if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "LRU"))
-				substPagina.substituirComLRU(numPagina, processo.getIdProcesso());
-			else if (Objects.equals(ConfigData.tipoSubstituicaoPaginas, "CLOCK")) {
-				substPagina.substituirComClockTwoDigits(numPagina, processo.getIdProcesso());
+			System.out.println("Não há quadros livres. Iniciando algoritmo de substituição de página (" + ConfigData.tipoSubstituicaoPaginas + ")...");
+			if ("LRU".equals(ConfigData.tipoSubstituicaoPaginas)) {
+				substPagina.substituirComLRU(numPagina, processo);
+			} else {
+				substPagina.substituirComClock(numPagina, processo);
 			}
 		}
 
-		tlb.adicionarEntrada(resultado);
-		return resultado;
-	}
-	public ImagemProcesso buscarProcessoPorID(String ID){
-		return StaticObjects.getAllProcessos().stream()
-				.filter(x -> x.getIdProcesso().equals(ID.substring(1))).findFirst().get();
+		entradaTP.setPresenca(true);
+		entradaTP.setUso(true);
+		entradaTP.setModificacao(modificacao);
+		entradaTP.setTempoUltimoUso(WindowData.tempoLogico);
+		tlb.adicionarEntrada(entradaTP, processo.getIdProcesso());
+
+		return entradaTP;
 	}
 
-
+	public void addFilaInterrupcoes(Interrupcao interrupcao) {
+		this.interrupcoes.enqueue(interrupcao);
+	}
 }
-
-

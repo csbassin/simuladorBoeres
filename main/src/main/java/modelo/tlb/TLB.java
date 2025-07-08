@@ -1,72 +1,55 @@
 package modelo.tlb;
 
 import modelo.tabelaPaginas.EntradaTP;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
 
 public class TLB {
-    private int qtdPaginas;
-    private ArrayList<EntradaTLB> entradas;
+    private final LinkedHashMap<Integer, EntradaTP> cache;
+    private final int capacidade;
+    private String processoIdAtual;
 
-
-    public TLB(int qtdPaginas) {
-        this.qtdPaginas = qtdPaginas;
-        entradas = new ArrayList<>(qtdPaginas);
-    }
-
-    private void substituicaoLRU(EntradaTLB entradaTLB){
-        //Será usado LRU para substituir as entradas da TLB //Por uma logica com a modificação aq tambem?
-        int maior_indice = 0;
-        for (int i = 0; i<qtdPaginas; i++) {
-            if(entradas.get(i).getTempoUltimoUso() > maior_indice)
-                maior_indice = i;
-        }
-        entradas.set(maior_indice, entradaTLB);
-    }
-
-    public void adicionarEntrada(EntradaTP entradaTP) {
-        //Adiciona se estiver vazio e se não estiver substitui
-        EntradaTLB entradaTLB = new EntradaTLB(entradaTP);
-        if (entradas.size() < qtdPaginas)
-            entradas.add(entradaTLB);
-        else
-            substituicaoLRU(entradaTLB);
-    }
-
-    public boolean consulta(int numPagina) {
-        //Consultar entrada na TLB
-        boolean consulta = false;
-        for (EntradaTLB entrada: entradas) {
-            if (numPagina == entrada.getNumPagina() && entrada.isValid()) {
-                entrada.zerarTempoUltimoUso();
-                consulta = true;
+    public TLB(int capacidade) {
+        this.capacidade = capacidade;
+        this.cache = new LinkedHashMap<>(capacidade, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Integer, EntradaTP> eldest) {
+                return size() > TLB.this.capacidade;
             }
-            else
-                entrada.incrementarTempoUltimoUso();
-        }
-        return consulta;
+        };
     }
 
-    public void trocaDeProcesso(){
-        //No caso de uma troca de processo a valdiade das entradas é zerada
-        for (EntradaTLB entrada: entradas) {
-            entrada.setValid(false);
-            entrada.zerarTempoUltimoUso();
+    public Optional<EntradaTP> consulta(int numPagina, String processoId) {
+        if (!processoId.equals(this.processoIdAtual)) {
+            return Optional.empty();
         }
-
+        return Optional.ofNullable(cache.get(numPagina));
     }
 
-    public boolean getModificacao(int numPagina){
-        for (EntradaTLB entrada: entradas) {
-            if (numPagina == entrada.getNumPagina())
-                return entrada.isModificacao();
+    public void adicionarEntrada(EntradaTP entradaTP, String processoId) {
+        if (!processoId.equals(this.processoIdAtual)) {
+            trocaDeProcesso(processoId);
         }
-        return false;
+        cache.put(entradaTP.getNumPagina(), entradaTP);
     }
 
-    public void marcarModificacao(int numPagina) {
-        for (EntradaTLB entrada: entradas) {
-            if (numPagina == entrada.getNumPagina())
-                entrada.setModificacao(true);
+    public void invalidarEntrada(int numPagina, String processoId) {
+        if(processoId.equals(this.processoIdAtual)) {
+            cache.remove(numPagina);
         }
+    }
+
+    public void trocaDeProcesso(String novoProcessoId) {
+        this.cache.clear();
+        this.processoIdAtual = novoProcessoId;
+    }
+
+    public String getProcessoIdAtual() {
+        return processoIdAtual;
+    }
+
+    public Map<Integer, EntradaTP> getEntradas() {
+        return cache;
     }
 }

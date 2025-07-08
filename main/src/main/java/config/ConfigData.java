@@ -1,15 +1,16 @@
 package config;
 
 public class ConfigData {
-    public static int tpSize = 300; //linhas da tabela de pagina
-    public static int quantidadeQuadros = 200; // quantidade de quadros da MP. É também o tamanho máximo do processo, uma vez que o escopo de substituição é global.
-    public static String pathInput = "main/src/teste.txt";
-    public static int quadroSize = 4192; //colocar sempre o valor em bytes, por favor
-    public static int qntdPagTlB = 30; //quantidade de paginas na TLB
-    public static String tipoSubstituicaoPaginas = "LRU"; //LRU ou CLOCK
+    public static int quantidadeQuadros = 4;  //número de quadros na memória principal
+    public static String pathInput = "main/src/teste.txt"; // arquivo de entrada com as instruções de simulação
+    public static int quadroSize = 1024; // Tamanho de cada quadro de memória (e, consequentemente, de cada página) em bytes
+    public static int qntdPagTlB = 2; // Número de entradas na TLB
+    public static String tipoSubstituicaoPaginas = "LRU"; // ("LRU" ou "CLOCK")
 
-
-    public static double tempoAcessoMP = 2.5;
-    public static int tempoAcessoMS = 5;
-    public static int tempoAcessoTLB = 1;
+    // Tempos de acesso para os diferentes tipos de memória, em milissegundos.
+    //só sao aplciados se não for usado o modo passo a passo
+    public static int tempoAcessoMP = 20;
+    public static int tempoAcessoMS = 100;
+    public static int tempoAcessoTLB = 5;
+    public static int cicloCPU = 500;
 }

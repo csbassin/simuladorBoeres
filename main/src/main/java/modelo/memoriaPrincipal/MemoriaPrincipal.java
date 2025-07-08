@@ -1,55 +1,52 @@
 package modelo.memoriaPrincipal;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import config.ConfigData;
 
 public class MemoriaPrincipal {
-	// a memória mais falsa da história
-	private ArrayList<Integer> quadrosLivres = new ArrayList<>(ConfigData.quantidadeQuadros);
-	private ArrayList<Integer> quadrosOcupados = new ArrayList<>(ConfigData.quantidadeQuadros);
-	private int tamanhoMP = ConfigData.quantidadeQuadros * ConfigData.quadroSize;
-	
+	private final boolean[] quadrosOcupados;
+	private final Queue<Integer> quadrosLivres;
+	public final int tamanhoMP;
+
 	public MemoriaPrincipal() {
-		for(int i = 0; i< ConfigData.quantidadeQuadros; i++) {
+		this.quadrosOcupados = new boolean[ConfigData.quantidadeQuadros];
+		this.quadrosLivres = new LinkedList<>();
+		//Todos os quadros estão livres no começo
+		for (int i = 0; i < ConfigData.quantidadeQuadros; i++) {
 			quadrosLivres.add(i);
 		}
-	}
-	public void ocupar(Integer numQuadro) {
-		quadrosLivres.remove(numQuadro);
-		quadrosOcupados.add(numQuadro);
-	}
-	public void liberar(Integer numQuadro) {
-		quadrosOcupados.remove(numQuadro);
-		quadrosLivres.add(numQuadro);
-	}
-	public String getTamanhoMpAsString() {
-		return tamanhoMP+"B";
+		this.tamanhoMP = ConfigData.quantidadeQuadros * ConfigData.quadroSize;
 	}
 
-	public ArrayList<Integer> getQuadrosLivres() {
-		return quadrosLivres;
+	public Integer alocarQuadroLivre() {
+		if (quadrosLivres.isEmpty()) {
+			return null;
+		}
+		int quadro = quadrosLivres.poll(); //remove o primeiro elemento da queue e retorna ele
+		quadrosOcupados[quadro] = true;
+		return quadro;
 	}
 
-	public void setQuadrosLivres(ArrayList<Integer> quadrosLivres) {
-		this.quadrosLivres = quadrosLivres;
+	public void liberar(int numQuadro) {
+		// Volta com o quadro de volta pra fila de livres
+		if (numQuadro >= 0 && numQuadro < quadrosOcupados.length && quadrosOcupados[numQuadro]) {
+			quadrosOcupados[numQuadro] = false;
+			quadrosLivres.add(numQuadro);
+		}
 	}
 
-	public ArrayList<Integer> getQuadrosOcupados() {
+	public boolean[] getQuadrosOcupados() {
 		return quadrosOcupados;
-	}
-
-	public void setQuadrosOcupados(ArrayList<Integer> quadrosOcupados) {
-		this.quadrosOcupados = quadrosOcupados;
 	}
 
 	public int getTamanhoMP() {
 		return tamanhoMP;
 	}
 
-	public void setTamanhoMP(int tamanhoMP) {
-		this.tamanhoMP = tamanhoMP;
+	public int getQuantidadeQuadrosLivres() {
+		return quadrosLivres.size();
 	}
-	
-	
 }

@@ -1,8 +1,7 @@
 package visao;
-import other.Input;
 
 public class Launch {
-    public static void main(String[] args){
-        	new viewConfig();
+    public static void main(String[] args) {
+        javax.swing.SwingUtilities.invokeLater(() -> new viewConfig());
     }
 }

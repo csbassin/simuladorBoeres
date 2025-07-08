@@ -9,13 +9,13 @@ import static other.StaticObjects.getMemoriaPrincipal;
 public class TabelaDePaginas {
     private String idProcesso;
     private EntradaTP[] entradas;
-    
-    public TabelaDePaginas(int quantidadePaginasProcesso) {
-    	entradas = new EntradaTP[quantidadePaginasProcesso];
 
-    	for(int i = 0; i<quantidadePaginasProcesso; i++) {
-    		entradas[i] = new EntradaTP(false, false, false, 0, -1, i);
-    	}
+    public TabelaDePaginas(int quantidadePaginasProcesso) {
+        entradas = new EntradaTP[quantidadePaginasProcesso];
+
+        for(int i = 0; i<quantidadePaginasProcesso; i++) {
+            entradas[i] = new EntradaTP(false, false, false, 0L, -1, i);
+        }
     }
 
     public String getIdProcesso() {
@@ -35,35 +35,35 @@ public class TabelaDePaginas {
     }
 
     public void setNumQuadro(int numQuadro, int pagina) {
-    	entradas[pagina].setNumQuadro(numQuadro);
+        entradas[pagina].setNumQuadro(numQuadro);
     }
     public void setModificado(boolean modificado, int pagina) {
-    	entradas[pagina].setModificacao(modificado);
+        entradas[pagina].setModificacao(modificado);
     }
     public void setPresenca(boolean presente, int pagina) {
-    	entradas[pagina].setPresenca(presente);
+        entradas[pagina].setPresenca(presente);
     }
-    public void setUltimoUso(int ultimoUso, int pagina) {
-    	entradas[pagina].setTempoUltimoUso(ultimoUso);
+    public void setUltimoUso(long ultimoUso, int pagina) {
+        entradas[pagina].setTempoUltimoUso(ultimoUso);
     }
     public void setUso(boolean uso, int pagina) {
-    	entradas[pagina].setUso(uso);
+        entradas[pagina].setUso(uso);
     }
-    
+
     public int getNumQuadro(int pagina) {
-    	return entradas[pagina].getNumQuadro();
+        return entradas[pagina].getNumQuadro();
     }
     public boolean getModificado(int pagina) {
-    	return entradas[pagina].getModificacao();
+        return entradas[pagina].getModificacao();
     }
     public boolean getPresenca(int pagina) {
-    	return entradas[pagina].getPresenca();
+        return entradas[pagina].getPresenca();
     }
-    public int getUltimoUso(int ultimoUso, int pagina) {
-    	return entradas[pagina].getTempoUltimoUso();
+    public long getUltimoUso(int pagina) {
+        return entradas[pagina].getTempoUltimoUso();
     }
     public boolean getUso(int pagina) {
-    	return entradas[pagina].getUso();
+        return entradas[pagina].getUso();
     }
 
     public EntradaTP getEntradaPagina(int numPag) {
@@ -71,7 +71,6 @@ public class TabelaDePaginas {
     }
 
     public boolean consulta(int numPagina) {
-        //Consultar entrada na tp
         return entradas[numPagina].getPresenca();
     }
 }

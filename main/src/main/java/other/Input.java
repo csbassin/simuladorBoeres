@@ -8,72 +8,37 @@ import java.util.stream.Collectors;
 import config.ConfigData;
 
 public class Input {
-	//private ArrayList<String> instrucoes = new ArrayList<String>();
-	private String filePath = "";
-	ArrayList<String> instrucoes = new ArrayList<>();
-	private int instrucoesPendentes;
+	private ArrayList<String> instrucoes = new ArrayList<>();
 	private int quantidadeProcessos = 0;
 
 	public Input() throws Exception {
 		File input = new File(ConfigData.pathInput);
-		if(!input.exists()) {
-			throw new Exception("O arquivo não existe.");
-		}else {
-			Object[] linhas = Files.lines(input.toPath()).toArray();
-
-			// Aplica o trim nas linhas e coloca em um array
-			// Menos linhas não significa mais rápido. Aquela função fazia um for do mesmo jeito, só estava sacrificando a legibilidade
-			for(int i = 0; i<linhas.length; i++) {
-				instrucoes.add(((String)linhas[i]).trim());
-			}
-
-			//Cria uma lista somente com os processos existentes
-			HashSet<String> processos = instrucoes.stream().map(
-								  x -> x.substring(0, x.indexOf(' ')
-										)).collect(Collectors.toCollection(HashSet::new));
-			quantidadeProcessos = processos.size();
-			}
-			instrucoesPendentes = instrucoes.size();
+		if (!input.exists()) {
+			throw new Exception("O arquivo de entrada não foi encontrado em: " + ConfigData.pathInput);
 		}
 
+		List<String> linhas = Files.readAllLines(input.toPath());
 
-	public String getFilePath() {
-		return filePath;
+		for (String linha : linhas) {
+			String linhaTratada = linha.trim();
+			if (!linhaTratada.isEmpty() && !linhaTratada.startsWith("#")) {
+				instrucoes.add(linhaTratada);
+			}
+		}
+
+		HashSet<String> processos = instrucoes.stream()
+				.filter(inst -> inst.split(" ")[1].equals("C"))
+				.map(inst -> inst.split(" ")[0])
+				.collect(Collectors.toCollection(HashSet::new));
+
+		quantidadeProcessos = processos.size();
 	}
-	
-	public int getInstrucoesPendentes() {
-		return instrucoesPendentes;
-	}
-
-	public void setFilePath(String filePath) {
-		this.filePath = filePath;
-	}
-
-
-	public void setInstrucoesPendentes(int i) {
-		this.instrucoesPendentes = i;
-	}
-
 
 	public ArrayList<String> getInstrucoes() {
 		return instrucoes;
 	}
 
-
-	public void setInstrucoes(ArrayList<String> instrucoes) {
-		this.instrucoes = instrucoes;
-	}
-
-
 	public int getQuantidadeProcessos() {
 		return quantidadeProcessos;
 	}
-
-
-	public void setQuantidadeProcessos(int quantidadeProcessos) {
-		this.quantidadeProcessos = quantidadeProcessos;
-	}
-	
-	
-
 }

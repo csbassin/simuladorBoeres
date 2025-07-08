@@ -2,32 +2,36 @@ package modelo.memoriaSecundaria;
 
 import config.ConfigData;
 
-import java.util.ArrayList;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-public class MemoriaSecundaria extends Thread{
-	private ArrayList<String> processoPagina = new ArrayList<>();
-
-	public MemoriaSecundaria() {
-	}
+public class MemoriaSecundaria extends Thread {
+	// Uma fila bloqueante para gurdar as páginas que precisam ser gravadas no disco.
+	private final BlockingQueue<String> paginasParaGravar = new LinkedBlockingQueue<>(); //pra lidar com as threads
 
 	public void gravar(String idProcesso, int numPagina) {
-		run();
-		processoPagina.add(idProcesso+" "+numPagina);
-	}
+		String paginaInfo = "Processo: " + idProcesso + ", Página: " + numPagina;
+		try {
+			paginasParaGravar.put(paginaInfo); // vai bloquear se a fila estiver cheia
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}//
 
 	@Override
 	public void run() {
-		while (true) {
+		while (!Thread.currentThread().isInterrupted()) {
 			try {
-				Thread.sleep(ConfigData.tempoAcessoMS*1000); // Simula o tempo de gravação
+				String pagina = paginasParaGravar.take();
+				System.out.println("Gravando na memória secundária -> " + pagina);
+				Thread.sleep(ConfigData.tempoAcessoMS);
+				System.out.println("Gravação concluída: " + pagina);
+
 			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			if (!processoPagina.isEmpty()) {
-				String pagina = processoPagina.remove(0);
-				System.out.println("Gravando na memória secundária: " + pagina);
+				Thread.currentThread().interrupt();
+				break;
 			}
 		}
+		System.out.println("Thread da Memória Secundária encerrada.");
 	}
 }
-

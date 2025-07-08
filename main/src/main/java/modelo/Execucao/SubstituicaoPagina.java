@@ -1,167 +1,143 @@
 package modelo.Execucao;
 
-import java.util.ArrayList;
-
+import config.ConfigData;
+import modelo.memoriaPrincipal.MemoriaPrincipal;
 import modelo.processo.ImagemProcesso;
+import other.Estados;
 import other.StaticObjects;
 import modelo.tabelaPaginas.*;
-import modelo.tabelaPaginas.EntradaTP;
-import modelo.memoriaSecundaria.MemoriaSecundaria;
+import visao.WindowData;
+import java.util.ArrayList;
 
 public class SubstituicaoPagina {
+    private final CPU cpu;
+    private int ponteiro_clock = 0;
 
-    public void substituirComLRU(int numPagina, String idProcesso){
-        
-        // pegar todos os processos, já que isso é global
-        ArrayList<ImagemProcesso> imagens = StaticObjects.getAllProcessos();
-        TabelaDePaginas tpDoSendoCarregado = null;
-        String idProcessoDoASubstituir = null;
-        EntradaTP entradaDoASubstituir = null;
-        int numPaginaDoASubstituir = -1;
-        long menorTempoUso = Long.MAX_VALUE;
-
-        for(ImagemProcesso processo:imagens){
-            if(idProcesso.equals(processo.getIdProcesso())){ // se pid = pid recebido, a tabela é do processo que vai ser carregado
-                tpDoSendoCarregado = processo.getTabelaDePaginas();
-            }
-
-            EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
-            for(int i = 0; i < entradas.length; i++) {
-                EntradaTP entrada = entradas[i];
-                if(entrada.getTempoUltimoUso() < menorTempoUso && entrada.getNumQuadro() > -1){
-                    menorTempoUso = entrada.getTempoUltimoUso();
-                    entradaDoASubstituir = entrada;
-                    idProcessoDoASubstituir = processo.getIdProcesso();
-                    numPaginaDoASubstituir = i; // LINHA DA CORREÇÃO
-                }
-            }
-            // verificar o bit de modificação na entrada que será alterada
-            if(entradaDoASubstituir.getModificacao()){ // precisa gravar em ms
-                MemoriaSecundaria ms = StaticObjects.getMemoriaSecundaria();
-                ms.gravar(idProcessoDoASubstituir, numPaginaDoASubstituir);
-            }
-            // depois de gravar em memória secundária, setar o número do quadro para -1
-            int numQuadroSubs = entradaDoASubstituir.getNumQuadro();
-            entradaDoASubstituir.setNumQuadro(-1);
-            // agora, o quadro que liberamos passará a ter a página do cara que precisa ter a página carregada
-            tpDoSendoCarregado.getEntradas()[numPagina].setNumQuadro(numQuadroSubs);
-        }
+    public SubstituicaoPagina(CPU cpu) {
+        this.cpu = cpu;
     }
 
-
-    public void substituirComClockTwoDigits(int numPagina, String idProcesso) {
+    public void substituirComLRU(int numPaginaNova, ImagemProcesso processoNovo) {
         ArrayList<ImagemProcesso> imagens = StaticObjects.getAllProcessos();
-        TabelaDePaginas tpDoSendoCarregado = null;
-
-        // Localiza a tabela do processo que vai receber a nova página
-        for (ImagemProcesso processo : imagens) {
-            if (processo.getIdProcesso().equals(idProcesso)) {
-                tpDoSendoCarregado = processo.getTabelaDePaginas();
-                break;
-            }
-        }
-        if (tpDoSendoCarregado == null) return;
-
         EntradaTP entradaParaSubstituir = null;
-        ImagemProcesso processoASerSubstituido = null;
-        int numPaginaSubstituida = -1;
-
-        // ==== PASSO 1 ==== verificando se há bit u =0 e bit m=0
-        outer:
+        ImagemProcesso processoDaPaginaSubstituida = null;
+        long menorTempoUso = Long.MAX_VALUE;
+        WindowData.ponteiroClock = -1;
+        // Encontra a página menos recentemente usada
         for (ImagemProcesso processo : imagens) {
-            EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
-            for (int i = 0; i < entradas.length; i++) {
-                EntradaTP entrada = entradas[i];
-                if (entrada.getNumQuadro() != -1 && !entrada.getUso() && !entrada.getModificacao()) {
+            for (EntradaTP entrada : processo.getTabelaDePaginas().getEntradas()) {
+                if (entrada.getPresenca() && entrada.getTempoUltimoUso() < menorTempoUso) {
+                    menorTempoUso = entrada.getTempoUltimoUso();
                     entradaParaSubstituir = entrada;
-                    processoASerSubstituido = processo;
-                    numPaginaSubstituida = i;
-                    break outer;
+                    processoDaPaginaSubstituida = processo;
                 }
             }
         }
 
-        // ==== PASSO 2 ==== verificando se há bit u =0 e bit m=1
         if (entradaParaSubstituir == null) {
-            outer:
-            for (ImagemProcesso processo : imagens) {
-                EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
-                for (int i = 0; i < entradas.length; i++) {
-                    EntradaTP entrada = entradas[i];
-                    if (entrada.getNumQuadro() == -1) continue;
-
-                    if (entrada.getUso()) {
-                        entrada.setUso(false); // zera o uso
-                    } else if (entrada.getModificacao()) {
-                        entradaParaSubstituir = entrada;
-                        processoASerSubstituido = processo;
-                        numPaginaSubstituida = i;
-                        break outer;
-                    }
-                }
-            }
-        }
-
-        // ==== PASSO 3 ==== Se o passo 2 falhar, retornar ao passo 1
-        if (entradaParaSubstituir == null) {
-            outer:
-            for (ImagemProcesso processo : imagens) {
-                EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
-                for (int i = 0; i < entradas.length; i++) {
-                    EntradaTP entrada = entradas[i];
-                    if (entrada.getNumQuadro() != -1 && !entrada.getUso() && !entrada.getModificacao()) {
-                        entradaParaSubstituir = entrada;
-                        processoASerSubstituido = processo;
-                        numPaginaSubstituida = i;
-                        break outer;
-                    }
-                }
-            }
-        }
-
-        // ==== PASSO 4 ==== se passo 3 falhar executar passo 2
-        if (entradaParaSubstituir == null) {
-            outer:
-            for (ImagemProcesso processo : imagens) {
-                EntradaTP[] entradas = processo.getTabelaDePaginas().getEntradas();
-                for (int i = 0; i < entradas.length; i++) {
-                    EntradaTP entrada = entradas[i];
-                    if (entrada.getNumQuadro() != -1 && !entrada.getUso() && entrada.getModificacao()) {
-                        entradaParaSubstituir = entrada;
-                        processoASerSubstituido = processo;
-                        numPaginaSubstituida = i;
-                        break outer;
-                    }
-                }
-            }
-        }
-
-        // ==== VERIFICAÇÃO FINAL ====
-        if (entradaParaSubstituir == null) {
-            System.out.println("Nenhuma página elegível encontrada após 4 etapas.");
+            System.err.println("Erro na substituição LRU: não foi possível encontrar uma página para substituir.");
             return;
         }
 
-        // Se a entrada a ser substituída estiver modificada, salva na MS
-        if (entradaParaSubstituir.getModificacao()) {
-            MemoriaSecundaria ms = StaticObjects.getMemoriaSecundaria();
-            ms.gravar(processoASerSubstituido.getIdProcesso(), numPaginaSubstituida);
-        }
+        System.out.println("Substituição LRU: Página " + entradaParaSubstituir.getNumPagina() +
+                " do Processo " + processoDaPaginaSubstituida.getIdProcesso() + " será substituída.");
 
-        int quadroLiberado = entradaParaSubstituir.getNumQuadro();
-
-        // Libera entrada antiga
-        entradaParaSubstituir.setNumQuadro(-1);
-        entradaParaSubstituir.setUso(false);
-        entradaParaSubstituir.setModificacao(false);
-        entradaParaSubstituir.setPresenca(false);
-
-        // Carrega nova página
-        EntradaTP novaEntrada = tpDoSendoCarregado.getEntradas()[numPagina];
-        novaEntrada.setNumQuadro(quadroLiberado);
-        novaEntrada.setUso(true);
-        novaEntrada.setModificacao(false); // assume não modificada
-        novaEntrada.setPresenca(true);
+        int quadroLiberado = descarregarPagina(entradaParaSubstituir, processoDaPaginaSubstituida);
+        carregarPagina(quadroLiberado, numPaginaNova, processoNovo);
     }
 
+    public void substituirComClock(int numPaginaNova, ImagemProcesso processoNovo) {
+        MemoriaPrincipal mp = StaticObjects.getMemoriaPrincipal();
+        EntradaTP entradaParaSubstituir = null;
+        ImagemProcesso processoDaPaginaSubstituida = null;
+
+        while (entradaParaSubstituir == null) {
+            int quadroAtual = ponteiro_clock;
+            WindowData.ponteiroClock = quadroAtual;
+            ImagemProcesso pTemp = null;
+            EntradaTP eTemp = null;
+
+            //  Busca a página que ocupa o quadro apontado pelo ponteiro do relógio
+            search:
+            for (ImagemProcesso p : StaticObjects.getAllProcessos()) {
+                for (EntradaTP e : p.getTabelaDePaginas().getEntradas()) {
+                    if (e.getPresenca() && e.getNumQuadro() == quadroAtual) {
+                        pTemp = p;
+                        eTemp = e;
+                        break search;
+                    }
+                }
+            }
+
+            // Avança o ponteiro para a próxima iteração
+            ponteiro_clock = (ponteiro_clock + 1) % ConfigData.quantidadeQuadros;
+
+            if (eTemp != null) {
+                if (!eTemp.getUso()) { // Bit de uso é 0 -> Encontrou o alvo
+                    entradaParaSubstituir = eTemp;
+                    processoDaPaginaSubstituida = pTemp;
+                } else { // Bit de uso é 1 -> "segunda chance"
+                    eTemp.setUso(false); // Zera o bit de uso
+                }
+            }
+        }
+
+        System.out.println("Substituição Clock: Página " + entradaParaSubstituir.getNumPagina() +
+                " do Processo " + processoDaPaginaSubstituida.getIdProcesso() + " será substituída (Quadro " + entradaParaSubstituir.getNumQuadro() + ").");
+
+        int quadroLiberado = descarregarPagina(entradaParaSubstituir, processoDaPaginaSubstituida);
+        carregarPagina(quadroLiberado, numPaginaNova, processoNovo);
+    }
+
+    private int descarregarPagina(EntradaTP paginaAntiga, ImagemProcesso processoAntigo) {
+        // Se a página foi modificada, salva ela na memória secundária
+        if (paginaAntiga.getModificacao()) {
+            if (!WindowData.stepByStepMode) {
+                try { Thread.sleep(ConfigData.tempoAcessoMS); } catch (InterruptedException e) {}
+            }
+            StaticObjects.getMemoriaSecundaria().gravar(processoAntigo.getIdProcesso(), paginaAntiga.getNumPagina());
+        }
+
+        int numQuadro = paginaAntiga.getNumQuadro();
+
+        // Invalida a entrada da página na tabela de páginas
+        paginaAntiga.setPresenca(false);
+        paginaAntiga.setUso(false);
+        paginaAntiga.setModificacao(false);
+        paginaAntiga.setNumQuadro(-1);
+
+        // Remove da TLB se estiver lá
+        cpu.tlb.invalidarEntrada(paginaAntiga.getNumPagina(), processoAntigo.getIdProcesso());
+
+
+        // Verifica se o processo antigo ainda tem alguma página na memória
+        boolean algumaPaginaPresente = false;
+        for (EntradaTP entrada : processoAntigo.getTabelaDePaginas().getEntradas()) {
+            if (entrada.getPresenca()) {
+                algumaPaginaPresente = true;
+                break;
+            }
+        }
+
+        // Se nenhuma página estiver presente-> processo suspenso
+        if (!algumaPaginaPresente) {
+            // Só suspende se não estiver já bloqueado ou finalizado
+            if(processoAntigo.getPcb().getEstado() == Estados.PRONTO || processoAntigo.getPcb().getEstado() == Estados.EXECUTANDO) {
+                processoAntigo.getPcb().setEstado(Estados.PRONTOSUSPENSO);
+                cpu.prontos.remove(processoAntigo.getIdProcesso());
+                cpu.prontosSuspensos.enqueue(processoAntigo.getIdProcesso());
+                System.out.println("[OS] Processo " + processoAntigo.getIdProcesso() + " foi totalmente removido da memória e movido para Pronto-Suspenso.");
+            }
+        }
+
+
+        return numQuadro;
+    }
+
+    private void carregarPagina(int numQuadro, int numPaginaNova, ImagemProcesso processoNovo) {
+        EntradaTP paginaNova = processoNovo.getTabelaDePaginas().getEntradaPagina(numPaginaNova);
+        paginaNova.setNumQuadro(numQuadro);
+        // O resto dos atributos (presença, uso...) são setados no método acessarEndereco la na CPU
+        System.out.println("Página " + numPaginaNova + " do Processo " + processoNovo.getIdProcesso() + " será carregada no quadro " + numQuadro);
+    }
 }
